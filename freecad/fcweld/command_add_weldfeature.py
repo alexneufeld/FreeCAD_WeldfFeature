@@ -13,9 +13,9 @@ class AddWeldFeatureCommand:
     DEFAULT_OBJECT_VALUES = {
         "WeldSize": FreeCAD.Units.Quantity("4 mm"),
         "IntermittentWeld": False,
-        "NumberOfWelds": 2,
-        "WeldSpacing": FreeCAD.Units.Quantity("50 mm"),
-        "WeldLength": "15 mm",
+        "NumberOfIntermittentWelds": 2,
+        "IntermittentWeldSpacing": FreeCAD.Units.Quantity("50 mm"),
+        "IntermittentWeldLength": "15 mm",
         "FieldWeld": False,
         "AlternatingWeld": False,
         "AllAround": False,
