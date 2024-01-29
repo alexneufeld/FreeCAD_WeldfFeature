@@ -35,36 +35,20 @@ class ViewProviderWeldFeature:
     def attach(self, vobj):
         # setup the default shaded display mode
         self.default_display_group = coin.SoSeparator()
-        # set some basic properties of the default display mode
-        # self.shape_hints = coin.SoShapeHints()
-        # # vertexOrdering == CLOCKWISE or COUNTERCLOCKWISE, shapeType == SOLID:
-        # # causes primitives to be backface culled and rendered with one-sided lighting.
-        # self.shape_hints.vertexOrdering = coin.SoShapeHints.COUNTERCLOCKWISE
-        # self.shape_hints.shapeType = coin.SoShapeHints.SOLID
-        # self.shape_hints.creaseAngle = 0.0 # math.pi*1.1
-        # self.default_display_group.addChild(self.shape_hints)
         #
         # self.material = coin.SoMaterial()
         # self.default_display_group.addChild(coin.SoDirectionalLight())
         # self.material.diffuseColor = (1.0, 0.0, 0.0)   # Red
         # self.default_display_group.addChild(self.material)
 
-        # setup shaders
-        shaderpath = os.path.dirname(os.path.abspath(__file__))
-        self.shader_program = coin.SoShaderProgram()
+        self.spheres = coin.SoSeparator()
+        self.odd_colored_cylinderes = coin.SoSeparator()
+        self.even_colored_cylinderes = coin.SoSeparator()
 
-        self.vertex_shader = coin.SoVertexShader()
-        self.vertex_shader.sourceProgram.setValue(os.path.join(shaderpath, 'weldbead_vertex_shader.glsl'))
+        self.default_display_group.addChild(self.spheres)
+        self.default_display_group.addChild(self.odd_colored_cylinderes)
+        self.default_display_group.addChild(self.even_colored_cylinderes)
 
-        self.fragment_shader = coin.SoFragmentShader()
-        self.fragment_shader.sourceProgram.setValue(os.path.join(shaderpath, 'weldbead_fragment_shader.glsl'))
-
-        self.shader_program.shaderObject.set1Value(0, self.vertex_shader)
-        self.shader_program.shaderObject.set1Value(1, self.fragment_shader)
-        self.default_display_group.addChild(self.shader_program)
-
-        self.extrusion = coin.SoVRMLExtrusion()
-        self.default_display_group.addChild(self.extrusion)
         # setup the wireframe display mode
         self.wireframe_display_group = coin.SoSeparator()
 
@@ -78,73 +62,74 @@ class ViewProviderWeldFeature:
         if not self.is_attached:
             self.attach(fp.ViewObject)
             self.is_attached = True
-        if prop == "Base":
-            self.create_extrusion(fp.Base, float(fp.WeldSize.getValueAs('mm')))
-        if prop == "WeldSize":
-            # rescale the weld bead
-            beadsize = float(fp.WeldSize.getValueAs('mm'))
-            self.extrusion.scale.setNum(1)
-            self.extrusion.scale.set1Value(0, coin.SbVec2f(beadsize, beadsize))
+        if prop == "Base" or prop == "WeldSize":
+            pass
+        self.setup_weld_bead(fp)
         return
 
-    def setup_weld_bead(self, geom_selection, bead_size):
+    def setup_weld_bead(self, fp):
+        geom_selection = fp.Base
+        bead_size = float(fp.WeldSize.getValueAs('mm'))
+
+        self.spheres.removeAllChildren()
+        self.odd_colored_cylinderes.removeAllChildren()
+        self.even_colored_cylinderes.removeAllChildren()
+
+        light = coin.SoDirectionalLight()
+        mat1 = coin.SoMaterial()
+        mat1.diffuseColor = fp.ViewObject.ShapeColor[:3]
+
+        mat2 = coin.SoMaterial()
+        mat2.diffuseColor = fp.ViewObject.AlternatingColor[:3]
+
+        # self.spheres.addChild(mat1)
+
         if not geom_selection:
             return
         base_object, subelement_names = geom_selection
         list_of_edges = [base_object.getSubObject(name) for name in subelement_names]
-        print(list_of_edges)
-        vertices = discretize_list_of_edges(list_of_edges)
-        print(vertices)
-        array = coin.SoMultipleCopy()
-        scale = coin.SoScale()
-        scale.scaleFactor.setValue(bead_size, bead_size, bead_size)
-        array.addChild(scale)
-        array.addChild(coin.SoSphere())
-        matrices = coin.SoMFMatrix()
-        matrices.setNum(len(vertices))
-        for i, vec in enumerate(vertices):
-            matrix = coin.SbMatrix()
-            matrix.setTranslate(coin.SbVec3f(*vec))
-            matrices.set1Value(i, matrix)
-        array.matrix = matrices
-        self.default_display_group.replaceChild(0, array)
+        vertices = discretize_list_of_edges(list_of_edges, bead_size)
+        for i, vert in enumerate(vertices):
+            # add a sphere
+            sphere_translate = coin.SoTranslation()
+            sphere_translate.translation.setValue(coin.SbVec3f(*vert))
+            sphere = coin.SoSphere()
+            sphere.radius.setValue(bead_size*0.99)
+            sep = coin.SoSeparator()
+            # sep.addChild(light)
+            sep.addChild(mat1)
+            sep.addChild(sphere_translate)
+            sep.addChild(sphere)
+            self.spheres.addChild(sep)
 
-    def create_extrusion(self, geom_selection, beadsize):
-        if not geom_selection:
-            # if no geometry is set as a base object, don't render anythin
-            self.extrusion.crossSection.setNum(0)
-            self.extrusion.spine.setNum(0)
-            return
-        base_object, subelement_names = geom_selection
-        list_of_edges = [base_object.getSubObject(name) for name in subelement_names]
-        vertices = discretize_list_of_edges(list_of_edges)
+            if (i != len(vertices)-1):
+                v2next = (vertices[i] - vertices[i+1])
+                cyl = coin.SoCylinder()
+                cyl.radius.setValue(bead_size)
+                cyl.height.setValue(v2next.Length)
+                cyl.parts.setValue(coin.SoCylinder.SIDES)
 
-        # create the profile as closed circle
-        fn = 30
-        self.extrusion.crossSection.setNum(fn + 1)
-        for i in range(fn):
-            theta = 2*math.pi * i / fn
-            x  = math.cos(theta)
-            # invert theta here to avoid flipped normals
-            z  = math.sin(-1*theta)
-            if abs(x) < 1e-5:
-                x = 0
-            if abs(z) < 1e-5:
-                z = 0
-            if i == 0:
-                x = 1.0
-                z = 0.0
-            self.extrusion.crossSection.set1Value(i, coin.SbVec2f(x, z))
-        self.extrusion.crossSection.set1Value(fn, coin.SbVec2f(1.0 , 0.0))
-        # set the scale of teh weld bead.
-        # If only a single value is specified for the scale parameters,
-        # it will be used at all points of the sweep path
-        self.extrusion.scale.setNum(1)
-        self.extrusion.scale.set1Value(0, coin.SbVec2f(beadsize, beadsize))
-        # define the sweep path
-        self.extrusion.spine.setNum(len(vertices))
-        for i, vec in enumerate(vertices):
-            self.extrusion.spine.set1Value(i, coin.SbVec3f(*vec))
+                cyl_transform = coin.SoTransform()
+                cyl_transform.translation.setValue(*(vert -0.5 * v2next))
+                cyl_axis = FreeCAD.Vector(0.0, 1.0, 0.0)
+                cyl_transform.rotation.setValue(
+                    coin.SbVec3f(*cyl_axis.cross(v2next)),
+                    math.acos(cyl_axis.dot(v2next) / (cyl_axis.Length * v2next.Length))
+                )
+
+                sep = coin.SoSeparator()
+                # sep.addChild(light)
+                if i % 2:
+                    sep.addChild(mat1)
+                else:
+                    sep.addChild(mat2)
+                sep.addChild(cyl_transform)
+                sep.addChild(cyl)
+
+                if i % 2:
+                    self.odd_colored_cylinderes.addChild(sep)
+                else:
+                    self.even_colored_cylinderes.addChild(sep)
 
     def getDisplayModes(self,obj):
         """
@@ -172,6 +157,7 @@ class ViewProviderWeldFeature:
         """
 
         FreeCAD.Console.PrintMessage("Change property: " + str(prop) + "\n")
+        self.setup_weld_bead(vp.Object)
 
     def getIcon(self):
         return os.path.join(ICONPATH, "WeldFeature.svg")

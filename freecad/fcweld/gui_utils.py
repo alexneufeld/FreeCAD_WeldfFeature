@@ -150,12 +150,13 @@ def get_best_default_object_colors(document_object):
     # choose an alternate color from the base color:
     rgb = base_color[:3]
     h, s, v = colorsys.rgb_to_hsv(*rgb)
+    change = 0.25
     if v <= 0.5:
         # the alternate color is the base color, but 15% lighter
-        new_v = v + 0.15
+        new_v = v + change
     elif v > 0.5:
         # the alternate color is the base color, but 15% darker
-        new_v = v - 0.15
+        new_v = v - change
     print(f"hsv: {h}, {s}, {new_v}")
     alternate_color = (*colorsys.hsv_to_rgb(h, s, new_v), 1.0)
     print(alternate_color)
