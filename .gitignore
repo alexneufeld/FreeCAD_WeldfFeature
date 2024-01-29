@@ -92,3 +92,7 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# FreeCAD backup files
+*.FCStd1
+*.FCBak
