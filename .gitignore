@@ -96,3 +96,6 @@ ENV/
 # FreeCAD backup files
 *.FCStd1
 *.FCBak
+
+# Kate swap files
+*.kate-swp
