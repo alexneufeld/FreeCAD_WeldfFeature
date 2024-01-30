@@ -229,7 +229,6 @@ class ViewProviderWeldFeature:
         vertices = self._vertex_list
         if not vertices:
             return
-        number_of_cyls = len(vertices) - 1
         number_of_main_cyls = len(vertices) // 2
         number_of_alt_cyls = len(vertices) - number_of_main_cyls - 1
         cyls_main_matrices = coin.SoMFMatrix()

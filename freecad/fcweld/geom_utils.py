@@ -25,7 +25,77 @@ def should_flip_edges(this_edge, next_edge, eps=1e-5):
     raise RuntimeError("Edges are not connected")
 
 
+class CompositeEdge:
+    def __init__(self, list_of_edges):
+        self._list_of_edges = Part.sortEdges(list_of_edges)[0]
+        self._list_of_lengths = [x.Length for x in self._list_of_edges]
+        self._should_flip_list = []
+        is_first = True
+        for index, edge in enumerate(self._list_of_edges):
+            if is_first:
+                is_first = False
+                next_edge = self._list_of_edges[1]
+                if not should_flip_edges(edge, next_edge)[0]:
+                    should_flip = True
+                else:
+                    should_flip = False
+            else:
+                last_edge = self._list_of_edges[index - 1]
+                if not should_flip_edges(last_edge, edge)[1]:
+                    should_flip = True
+                else:
+                    should_flip = False
+            self._should_flip_list.append(not should_flip)
+
+    @property
+    def Length(self):
+        return sum(x.Length for x in self._list_of_edges)
+
+    def discretize(self, n):
+        points = []
+        firstparam, lastparam = self.ParameterRange
+        for i in range(n):
+            points.append(self.valueAt(i/n*(lastparam-firstparam)))
+        points.append(self.valueAt(lastparam))
+        return points
+
+    @property
+    def ParameterRange(self):
+        return (0.0, self.Length)
+
+    def valueAt(self, param):
+        if (param  < self.ParameterRange[0]) or (param > self.ParameterRange[1]):
+            raise ValueError(f"Requested point ({param}) is outside the parameter range ({self.ParameterRange})")
+        running_total = 0.0
+        for i in range(len(self._list_of_edges)):
+            running_total += self._list_of_edges[i].Length
+            index_of_the_edge = i
+            if param <= running_total:
+                break
+        the_edge = self._list_of_edges[index_of_the_edge]
+        firstparam, lastparam = the_edge.ParameterRange
+        e_length = the_edge.Length
+        len_of_all_previous = running_total - e_length
+        if not self._should_flip_list[index_of_the_edge]:
+            # don't flip
+            traverse = (param - len_of_all_previous) / e_length
+        else:
+            traverse = 1 - (param - len_of_all_previous) / e_length
+        value = the_edge.valueAt(firstparam + traverse * (lastparam - firstparam))
+        return value
+
 def discretize_list_of_edges(edge_list, pitch):
+    if len(edge_list) == 1:
+        # special case for a single edge
+        comp = edge_list[0]
+    comp = CompositeEdge(edge_list)
+    elen = comp.Length
+    number_to_split_into = max(2, round(elen / pitch))
+    points = comp.discretize(number_to_split_into)
+    print(points)
+    return points
+
+def _discretize_list_of_edges(edge_list, pitch):
     """returns a list of FreeCAD.Vector
     This function should be supplied a list of connected edges.
     They don't neccesarliy need to be in order of connection
@@ -131,11 +201,4 @@ def discretize_list_of_edges(edge_list, pitch):
             resultant_points.extend(points)
         else:
             resultant_points.extend(points[:-1])
-    # shift the first and last points in a little to prevent face coincidence
-    # resultant_points[0] = resultant_points[0] + 0.05 * (
-    #     resultant_points[1] - resultant_points[0]
-    # )
-    # resultant_points[-1] = resultant_points[-1] - 0.05 * (
-    #     resultant_points[-1] - resultant_points[-2]
-    # )
     return resultant_points

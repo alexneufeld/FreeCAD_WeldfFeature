@@ -146,7 +146,7 @@ def get_best_default_object_colors(document_object):
         # use FreeCAD's default object shape color:
         view_params = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/View")
         color_int = view_params.GetUnsigned("DefaultShapeColor", 0xFF0000FF)
-        base_color = FreeCADColorUtils.int_to_rgba(base_color)
+        base_color = FreeCADColorUtils.int_to_rgba(color_int)
     # choose an alternate color from the base color:
     rgb = base_color[:3]
     h, s, v = colorsys.rgb_to_hsv(*rgb)
