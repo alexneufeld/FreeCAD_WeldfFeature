@@ -1,4 +1,3 @@
-# import functools
 import math
 import FreeCAD
 import collections
@@ -26,7 +25,6 @@ def should_flip_edges(this_edge, next_edge, eps=1e-5):
     raise RuntimeError("Edges are not connected")
 
 
-# @functools.lru_cache(maxsize=64)
 def discretize_list_of_edges(edge_list, pitch):
     """returns a list of FreeCAD.Vector
     This function should be supplied a list of connected edges.
@@ -134,10 +132,10 @@ def discretize_list_of_edges(edge_list, pitch):
         else:
             resultant_points.extend(points[:-1])
     # shift the first and last points in a little to prevent face coincidence
-    resultant_points[0] = resultant_points[0] + 0.05 * (
-        resultant_points[1] - resultant_points[0]
-    )
-    resultant_points[-1] = resultant_points[-1] - 0.05 * (
-        resultant_points[-1] - resultant_points[-2]
-    )
+    # resultant_points[0] = resultant_points[0] + 0.05 * (
+    #     resultant_points[1] - resultant_points[0]
+    # )
+    # resultant_points[-1] = resultant_points[-1] - 0.05 * (
+    #     resultant_points[-1] - resultant_points[-2]
+    # )
     return resultant_points

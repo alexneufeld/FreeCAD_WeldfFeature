@@ -39,52 +39,7 @@ class ViewProviderWeldFeature:
             "Rounded",
             "Pointed"
         ]
-        # create the inventor scene objects
-        self.default_display_group = coin.SoSeparator()
-        self.wireframe_display_group = coin.SoSeparator()
 
-        self.start_and_end_caps = coin.SoSeparator()
-        self.intermediate_spheres = coin.SoSeparator()
-        self.main_intermediate_cylinders = coin.SoSeparator()
-        self.alt_intermediate_cylinders = coin.SoSeparator()
-
-        self.main_material = coin.SoMaterial()
-        self.main_material.diffuseColor = vobj.ShapeColor[:3]
-        self.start_and_end_caps.addChild(self.main_material)
-        self.intermediate_spheres.addChild(self.main_material)
-        self.main_intermediate_cylinders.addChild(self.main_material)
-
-        self.alt_material = coin.SoMaterial()
-        self.alt_material.diffuseColor = vobj.AlternatingColor[:3]
-        self.alt_intermediate_cylinders.addChild(self.alt_material)
-
-        self.sphere = coin.SoSphere()
-        self.intermediate_cyl = coin.SoCylinder()
-        # default to 1mm sizes
-        self.sphere.radius.setValue(0.99)
-        self.intermediate_cyl.radius.setValue(1.0)
-        self.intermediate_cyl.height.setValue(1.0)
-        self.intermediate_cyl.parts.setValue(coin.SoCylinder.SIDES)
-
-        self.copies_of_spheres = coin.SoMultipleCopy()
-        self.copies_of_spheres.addChild(self.sphere)
-
-        self.copies_of_cyls = coin.SoMultipleCopy()
-        self.alt_copies_of_cyls = coin.SoMultipleCopy()
-        self.copies_of_endcaps = coin.SoMultipleCopy()
-        self.copies_of_endcaps.addChild(coin.SoCube())
-        self.copies_of_cyls.addChild(self.intermediate_cyl)
-        self.alt_copies_of_cyls.addChild(self.intermediate_cyl)
-        self.start_and_end_caps.addChild(self.copies_of_endcaps)
-
-        self.main_intermediate_cylinders.addChild(self.copies_of_cyls)
-        self.alt_intermediate_cylinders.addChild(self.alt_copies_of_cyls)
-        self.intermediate_spheres.addChild(self.copies_of_spheres)
-
-        self.default_display_group.addChild(self.start_and_end_caps)
-        self.default_display_group.addChild(self.intermediate_spheres)
-        self.default_display_group.addChild(self.main_intermediate_cylinders)
-        self.default_display_group.addChild(self.alt_intermediate_cylinders)
 
         # initialize an empty list of vertexes to run the weld bead thru
         self._vertex_list = []
@@ -93,13 +48,11 @@ class ViewProviderWeldFeature:
         pass
 
     def attach(self, vobj):
+        self._init_scene_graph(vobj)
         vobj.addDisplayMode(self.default_display_group, "Shaded")
         vobj.addDisplayMode(self.wireframe_display_group, "Wireframe")
 
     def updateData(self, fp, prop):
-        # if not self.is_attached:
-        #     self.attach(fp.ViewObject)
-        #     self.is_attached = True
         if prop == "Base":
             # recompute the entire weld bead shape
             self._recompute_vertices(fp)
@@ -140,11 +93,58 @@ class ViewProviderWeldFeature:
     def getIcon(self):
         return os.path.join(ICONPATH, "WeldFeature.svg")
 
-    def __getstate__(self):
+    def dumps(self):
+        return {"_vertex_list": [tuple(x) for x in self._vertex_list]}
+
+    def loads(self,state):
+        self._vertex_list = [FreeCAD.Vector(x) for x in state.get("_vertex_list", [])]
         return None
 
-    def __setstate__(self,state):
-        return None
+    def _init_scene_graph(self, vobj):
+        # create the inventor scene objects
+        self.default_display_group = coin.SoSeparator()
+        self.wireframe_display_group = coin.SoSeparator()
+
+        self.start_and_end_caps = coin.SoSeparator()
+        self.intermediate_spheres = coin.SoSeparator()
+        self.main_intermediate_cylinders = coin.SoSeparator()
+        self.alt_intermediate_cylinders = coin.SoSeparator()
+
+        self.main_material = coin.SoMaterial()
+        self.start_and_end_caps.addChild(self.main_material)
+        self.intermediate_spheres.addChild(self.main_material)
+        self.main_intermediate_cylinders.addChild(self.main_material)
+
+        self.alt_material = coin.SoMaterial()
+        self.alt_intermediate_cylinders.addChild(self.alt_material)
+
+        self.sphere = coin.SoSphere()
+        self.intermediate_cyl = coin.SoCylinder()
+        # default to 1mm sizes
+        self.sphere.radius.setValue(0.99)
+        self.intermediate_cyl.radius.setValue(1.0)
+        self.intermediate_cyl.height.setValue(1.0)
+        self.intermediate_cyl.parts.setValue(coin.SoCylinder.SIDES)
+
+        self.copies_of_spheres = coin.SoMultipleCopy()
+        self.copies_of_spheres.addChild(self.sphere)
+
+        self.copies_of_cyls = coin.SoMultipleCopy()
+        self.alt_copies_of_cyls = coin.SoMultipleCopy()
+        self.copies_of_endcaps = coin.SoMultipleCopy()
+        self.copies_of_endcaps.addChild(coin.SoCube())
+        self.copies_of_cyls.addChild(self.intermediate_cyl)
+        self.alt_copies_of_cyls.addChild(self.intermediate_cyl)
+        self.start_and_end_caps.addChild(self.copies_of_endcaps)
+
+        self.main_intermediate_cylinders.addChild(self.copies_of_cyls)
+        self.alt_intermediate_cylinders.addChild(self.alt_copies_of_cyls)
+        self.intermediate_spheres.addChild(self.copies_of_spheres)
+
+        self.default_display_group.addChild(self.start_and_end_caps)
+        self.default_display_group.addChild(self.intermediate_spheres)
+        self.default_display_group.addChild(self.main_intermediate_cylinders)
+        self.default_display_group.addChild(self.alt_intermediate_cylinders)
 
     def _set_geom_colors(self, vobj):
         self.main_material.diffuseColor = vobj.ShapeColor[:3]
@@ -208,7 +208,6 @@ class ViewProviderWeldFeature:
         endcap_matrices.set1Value(1, endcap_mat)
         self.copies_of_endcaps.matrix = endcap_matrices
 
-
     def _recompute_vertices(self, fp):
         """Call this as little as possible to save compute time"""
         bead_size = float(fp.WeldSize.getValueAs('mm'))
@@ -230,12 +229,7 @@ class ViewProviderWeldFeature:
         vertices = self._vertex_list
         if not vertices:
             return
-        number_of_spheres = len(vertices) - 2
-        spheres_matrices = coin.SoMFMatrix()
-        spheres_matrices.setNum(number_of_spheres)
-
         number_of_cyls = len(vertices) - 1
-
         number_of_main_cyls = len(vertices) // 2
         number_of_alt_cyls = len(vertices) - number_of_main_cyls - 1
         cyls_main_matrices = coin.SoMFMatrix()
@@ -245,12 +239,17 @@ class ViewProviderWeldFeature:
         sph_ctr = 0
         main_ctr = 0
         alt_ctr = 0
+        sph_mat_list = []
         for i, vert in enumerate(vertices):
             if (i != 0) and (i != len(vertices) - 1):
-                mat = coin.SbMatrix()
-                mat.setTranslate(coin.SbVec3f(*vert))
-                spheres_matrices.set1Value(sph_ctr, mat)
-                sph_ctr += 1
+                # don't show the sphere when the next, current, and last points
+                # are nearly colinear
+                x =  (vert-vertices[i-1]).getAngle(vertices[i+1] - vert)/ math.pi
+                if x > 1e-3:
+                    mat = coin.SbMatrix()
+                    mat.setTranslate(coin.SbVec3f(*vert))
+                    sph_mat_list.append(mat)
+                    sph_ctr += 1
             if (i != len(vertices)-1):
                 v2next = (vertices[i] - vertices[i+1])
                 # cylinders are created concentric to the Y-Axis
@@ -272,7 +271,13 @@ class ViewProviderWeldFeature:
                 else:
                     cyls_alt_matrices.set1Value(alt_ctr, mat2)
                     alt_ctr += 1
+
+        spheres_matrices = coin.SoMFMatrix()
+        spheres_matrices.setNum(sph_ctr)
+        for i, mat in enumerate(sph_mat_list):
+            spheres_matrices.set1Value(i, mat)
         self.copies_of_spheres.matrix = spheres_matrices
+
         self.copies_of_cyls.matrix = cyls_main_matrices
         self.alt_copies_of_cyls.matrix = cyls_alt_matrices
         # also need to change the endcaps
