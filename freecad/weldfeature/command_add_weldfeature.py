@@ -1,7 +1,7 @@
 import os
 import FreeCAD
 import FreeCADGui
-from freecad.fcweld import ICONPATH
+from freecad.weldfeature import ICONPATH
 from .weldfeature import WeldFeature
 from .viewprovider_weldfeature import ViewProviderWeldFeature
 from .gui_utils import parse_and_clean_selection

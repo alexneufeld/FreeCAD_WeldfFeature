@@ -10,12 +10,12 @@
   <url type="readme">https://github.com/alexneufeld/FreeCAD_WeldfFeature/blob/main/README.md</url>
   <icon>freecad/weldfeature/resources/WeldFeature.svg</icon>
 
-<!--  <content>
+  <content>
     <workbench>
-      <classname>???</classname>
+      <classname>none</classname>
       <subdirectory>./</subdirectory>
-      <tag>???</tag>
+      <tag>Welding</tag>
     </workbench>
-  </content>-->
+  </content>
 
 </package>

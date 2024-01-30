@@ -88,9 +88,10 @@ def discretize_list_of_edges(edge_list, pitch):
     if len(edge_list) == 1:
         # special case for a single edge
         comp = edge_list[0]
-    comp = CompositeEdge(edge_list)
-    elen = comp.Length
-    number_to_split_into = max(2, round(elen / pitch))
+    else:
+        comp = CompositeEdge(edge_list)
+    total_edge_length = comp.Length
+    number_to_split_into = max(2, round(total_edge_length / pitch))
     points = comp.discretize(number_to_split_into)
     print(points)
     return points

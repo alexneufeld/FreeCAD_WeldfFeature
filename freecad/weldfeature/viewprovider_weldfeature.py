@@ -1,7 +1,7 @@
 import os
 import math
 import FreeCAD
-from freecad.fcweld import ICONPATH
+from freecad.weldfeature import ICONPATH
 import pivy.coin as coin
 from .geom_utils import discretize_list_of_edges
 
