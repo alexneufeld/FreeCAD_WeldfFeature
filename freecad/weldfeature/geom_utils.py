@@ -5,8 +5,8 @@ import itertools
 import Part
 
 
-def round_vector(vec, eps=1e-5):
-    return FreeCAD.Vector(*[round(d, math.ceil(-math.log10(eps))) for d in vec])
+def round_vector(vec, ndigits=None):
+    return FreeCAD.Vector(*[round(d, ndigits) for d in vec])
 
 
 def should_flip_edges(this_edge, next_edge, eps=1e-5):
@@ -96,7 +96,6 @@ def discretize_list_of_edges(edge_list, pitch):
     total_edge_length = comp.Length
     number_to_split_into = max(2, round(total_edge_length / pitch))
     points = comp.discretize(number_to_split_into)
-    print(points)
     return points
 
 
@@ -110,8 +109,8 @@ def _discretize_list_of_edges(edge_list, pitch):
     vertex_list = []
     for edge in edge_list:
         first_param, last_param = edge.ParameterRange
-        first_vertex = round_vector(edge.valueAt(first_param))
-        last_vertex = round_vector(edge.valueAt(last_param))
+        first_vertex = round_vector(edge.valueAt(first_param), ndigits=5)
+        last_vertex = round_vector(edge.valueAt(last_param), ndigits=5)
         if first_vertex not in vertex_list:
             vertex_list.append(first_vertex)
             first_index = len(vertex_list) - 1

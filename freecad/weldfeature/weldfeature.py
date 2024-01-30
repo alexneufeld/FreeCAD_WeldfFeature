@@ -1,3 +1,7 @@
+import FreeCAD
+from .geom_utils import discretize_list_of_edges
+
+
 class WeldFeature:
     def __init__(self, obj):
         obj.Proxy = self
@@ -83,12 +87,17 @@ class WeldFeature:
             "Computed Length of weld material in this weld object",
         )
 
+        self._vertex_list = []
+
     def execute(self, obj):
         pass
 
     def onChanged(self, obj, prop):
+        if prop == "Base":
+            print("onchnaged of featurepython object")
+            self._recompute_vertices(obj)
         if prop == "WeldSize":
-            pass
+            self._recompute_vertices(obj)
         if prop == "IntermittentWeld":
             # when not using an intermittent weld,
             # hide visibility of associated properties
@@ -120,5 +129,36 @@ class WeldFeature:
             pass
         if prop == "AllAround":
             pass
-            if prop == "WeldLength":
-                pass
+        if prop == "WeldLength":
+            pass
+
+    def dumps(self):
+        return {"_vertex_list": [tuple(x) for x in self._vertex_list]}
+
+    def loads(self, state):
+        self._vertex_list = [FreeCAD.Vector(x) for x in state.get("_vertex_list", [])]
+        return None
+
+    def _recompute_vertices(self, obj):
+        """Call this as little as possible to save compute time"""
+        bead_size = float(obj.WeldSize.getValueAs("mm"))
+        if bead_size < 1e-1:
+            FreeCAD.Console.PrintUserError(
+                "Weld sizes of less than 0.1mm are not supported\n"
+            )
+            return
+        geom_selection = obj.Base
+        print(f"{geom_selection=}")
+        if not geom_selection:
+            self._vertex_list = []
+            return
+        base_object, subelement_names = geom_selection
+        list_of_edges = [base_object.getSubObject(name) for name in subelement_names]
+        # when restoring documents, all edges may breifly be null for some reason
+        amount_of_null_shapes = len(
+            [x for x in [edge.isNull() for edge in list_of_edges] if x]
+        )
+        if amount_of_null_shapes == len(list_of_edges):
+            return
+        vertices = discretize_list_of_edges(list_of_edges, bead_size)
+        self._vertex_list = vertices

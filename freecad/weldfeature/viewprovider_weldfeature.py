@@ -3,7 +3,6 @@ import math
 import FreeCAD
 from freecad.weldfeature import ICONPATH
 import pivy.coin as coin
-from .geom_utils import discretize_list_of_edges
 
 
 class ViewProviderWeldFeature:
@@ -36,9 +35,6 @@ class ViewProviderWeldFeature:
         )
         vobj.EndCapStyle = ["Flat", "Rounded", "Pointed"]
 
-        # initialize an empty list of vertexes to run the weld bead thru
-        self._vertex_list = []
-
         vobj.Proxy = self
         pass
 
@@ -49,15 +45,14 @@ class ViewProviderWeldFeature:
 
     def updateData(self, fp, prop):
         if prop == "Base":
+            print("updatedata of viewprovide object")
             # recompute the entire weld bead shape
-            self._recompute_vertices(fp)
             self._setup_weld_bead(fp)
         if prop == "WeldSize":
             # disallow really small weld sizes
             new_size = float(fp.WeldSize.getValueAs("mm"))
             self.sphere.radius.setValue(0.99 * new_size)
             self.intermediate_cyl.radius.setValue(new_size)
-            self._recompute_vertices(fp)
             self._setup_weld_bead(fp)
         if prop == "IntermittentWeld":
             pass  # TODO
@@ -89,10 +84,9 @@ class ViewProviderWeldFeature:
         return os.path.join(ICONPATH, "WeldFeature.svg")
 
     def dumps(self):
-        return {"_vertex_list": [tuple(x) for x in self._vertex_list]}
+        return
 
     def loads(self, state):
-        self._vertex_list = [FreeCAD.Vector(x) for x in state.get("_vertex_list", [])]
         return None
 
     def _init_scene_graph(self, vobj):
@@ -149,7 +143,8 @@ class ViewProviderWeldFeature:
             self.alt_material.diffuseColor = vobj.ShapeColor[:3]
 
     def _adjust_endcaps(self, fp):
-        if not self._vertex_list:
+        vertex_list = fp.Proxy._vertex_list
+        if not vertex_list:
             return
         self.copies_of_endcaps.removeAllChildren()
         cap_size = float(fp.WeldSize.getValueAs("mm"))
@@ -176,10 +171,10 @@ class ViewProviderWeldFeature:
         self.copies_of_endcaps.addChild(cap_shape)
         endcap_matrices = coin.SoMFMatrix()
         endcap_matrices.setNum(2)  # change this if supporting multiple segments
-        startcap_base = self._vertex_list[0]
-        endcap_base = self._vertex_list[-1]
-        startcap_dir = (startcap_base - self._vertex_list[1]).normalize()
-        endcap_dir = (endcap_base - self._vertex_list[-2]).normalize()
+        startcap_base = vertex_list[0]
+        endcap_base = vertex_list[-1]
+        startcap_dir = (startcap_base - vertex_list[1]).normalize()
+        endcap_dir = (endcap_base - vertex_list[-2]).normalize()
         primitive_axis = FreeCAD.Vector(0.0, 1.0, 0.0)
 
         startcap_rot_axis = coin.SbVec3f(*primitive_axis.cross(startcap_dir))
@@ -203,25 +198,8 @@ class ViewProviderWeldFeature:
         endcap_matrices.set1Value(1, endcap_mat)
         self.copies_of_endcaps.matrix = endcap_matrices
 
-    def _recompute_vertices(self, fp):
-        """Call this as little as possible to save compute time"""
-        bead_size = float(fp.WeldSize.getValueAs("mm"))
-        if bead_size < 1e-1:
-            FreeCAD.Console.PrintUserError(
-                "Weld sizes of less than 0.1mm are not supported\n"
-            )
-            return
-        geom_selection = fp.Base
-        if not geom_selection:
-            self._vertex_list = []
-            return
-        base_object, subelement_names = geom_selection
-        list_of_edges = [base_object.getSubObject(name) for name in subelement_names]
-        vertices = discretize_list_of_edges(list_of_edges, bead_size)
-        self._vertex_list = vertices
-
     def _setup_weld_bead(self, fp):
-        vertices = self._vertex_list
+        vertices = fp.Proxy._vertex_list
         if not vertices:
             return
         number_of_main_cyls = len(vertices) // 2
