@@ -71,8 +71,11 @@ class ViewProviderWeldFeature:
 
         self.copies_of_cyls = coin.SoMultipleCopy()
         self.alt_copies_of_cyls = coin.SoMultipleCopy()
+        self.copies_of_endcaps = coin.SoMultipleCopy()
+        self.copies_of_endcaps.addChild(coin.SoCube())
         self.copies_of_cyls.addChild(self.intermediate_cyl)
         self.alt_copies_of_cyls.addChild(self.intermediate_cyl)
+        self.start_and_end_caps.addChild(self.copies_of_endcaps)
 
         self.main_intermediate_cylinders.addChild(self.copies_of_cyls)
         self.alt_intermediate_cylinders.addChild(self.alt_copies_of_cyls)
@@ -100,8 +103,9 @@ class ViewProviderWeldFeature:
         if prop == "Base":
             # recompute the entire weld bead shape
             self._recompute_vertices(fp)
-            self._setup_weld_bead(f)
+            self._setup_weld_bead(fp)
         if prop == "WeldSize":
+            # disallow really small weld sizes
             new_size = float(fp.WeldSize.getValueAs('mm'))
             self.sphere.radius.setValue(0.99 * new_size)
             self.intermediate_cyl.radius.setValue(new_size)
@@ -131,7 +135,7 @@ class ViewProviderWeldFeature:
         if prop in ["ShapeColor", "AlternatingColor", "DrawWithAlternatingColors"]:
             self._set_geom_colors(vp)
         if prop == "EndCapStyle":
-            self._adjust_endcaps()
+            self._adjust_endcaps(vp.Object)
 
     def getIcon(self):
         return os.path.join(ICONPATH, "WeldFeature.svg")
@@ -149,47 +153,104 @@ class ViewProviderWeldFeature:
         else:
             self.alt_material.diffuseColor = vobj.ShapeColor[:3]
 
-    def _adjust_endcaps(self):
+    def _adjust_endcaps(self, fp):
         if not self._vertex_list:
             return
+        self.copies_of_endcaps.removeAllChildren()
+        cap_size = float(fp.WeldSize.getValueAs('mm'))
+        match fp.ViewObject.EndCapStyle:
+            case "Flat":
+                cap_shape = coin.SoCylinder()
+                cap_shape.radius.setValue(cap_size)
+                cap_shape.height.setValue(0.0)
+                cap_shape.parts.setValue(coin.SoCylinder.TOP)
+            case "Rounded":
+                cap_shape = coin.SoSphere()
+                cap_shape.radius.setValue(cap_size)
+            case "Pointed":
+                cone = coin.SoCone()
+                cone.bottomRadius.setValue(cap_size)
+                cone.height.setValue(cap_size)
+                cone.parts.setValue(coin.SoCone.SIDES)
+                translate = coin.SoTranslation()
+                translate.translation.setValue(coin.SbVec3f(0.0, 0.5*cap_size, 0.0))
+                cap_shape = coin.SoSeparator()
+                cap_shape.addChild(translate)
+                cap_shape.addChild(cone)
+
+        self.copies_of_endcaps.addChild(cap_shape)
+        endcap_matrices = coin.SoMFMatrix()
+        endcap_matrices.setNum(2)  # change this if supporting multiple segments
         startcap_base = self._vertex_list[0]
         endcap_base = self._vertex_list[-1]
+        startcap_dir = (startcap_base - self._vertex_list[1]).normalize()
+        endcap_dir = (endcap_base - self._vertex_list[-2]).normalize()
+        primitive_axis = FreeCAD.Vector(0.0, 1.0, 0.0)
+
+        startcap_rot_axis = coin.SbVec3f(*primitive_axis.cross(startcap_dir))
+        endcap_rot_axis = coin.SbVec3f(*primitive_axis.cross(endcap_dir))
+        startcap_rot_angle = math.acos(primitive_axis.dot(startcap_dir))
+        endcap_rot_angle = math.acos(primitive_axis.dot(endcap_dir))
+
+        startcap_mat = coin.SbMatrix()
+        startcap_mat.setTransform(
+            coin.SbVec3f(*startcap_base),  # translation
+            coin.SbRotation(startcap_rot_axis, startcap_rot_angle),  # rotation
+            coin.SbVec3f(1.0, 1.0, 1.0)  # scale
+        )
+        endcap_mat = coin.SbMatrix()
+        endcap_mat.setTransform(
+            coin.SbVec3f(*endcap_base),  # translation
+            coin.SbRotation(endcap_rot_axis, endcap_rot_angle),  # rotation
+            coin.SbVec3f(1.0, 1.0, 1.0)  # scale
+        )
+        endcap_matrices.set1Value(0, startcap_mat)
+        endcap_matrices.set1Value(1, endcap_mat)
+        self.copies_of_endcaps.matrix = endcap_matrices
+
 
     def _recompute_vertices(self, fp):
         """Call this as little as possible to save compute time"""
+        bead_size = float(fp.WeldSize.getValueAs('mm'))
+        if bead_size < 1e-1:
+            FreeCAD.Console.PrintUserError(
+                "Weld sizes of less than 0.1mm are not supported\n"
+            )
+            return
         geom_selection = fp.Base
         if not geom_selection:
             self._vertex_list = []
             return
         base_object, subelement_names = geom_selection
         list_of_edges = [base_object.getSubObject(name) for name in subelement_names]
-        bead_size = float(fp.WeldSize.getValueAs('mm'))
         vertices = discretize_list_of_edges(list_of_edges, bead_size)
         self._vertex_list = vertices
 
-    def _setup_weld_bead(self):
+    def _setup_weld_bead(self, fp):
         vertices = self._vertex_list
         if not vertices:
             return
-        number_of_spheres = len(vertices)
+        number_of_spheres = len(vertices) - 2
         spheres_matrices = coin.SoMFMatrix()
         spheres_matrices.setNum(number_of_spheres)
 
-        number_of_cyls = number_of_spheres - 1
+        number_of_cyls = len(vertices) - 1
 
-        number_of_main_cyls = number_of_spheres // 2
-        number_of_alt_cyls = number_of_spheres - number_of_main_cyls - 1
+        number_of_main_cyls = len(vertices) // 2
+        number_of_alt_cyls = len(vertices) - number_of_main_cyls - 1
         cyls_main_matrices = coin.SoMFMatrix()
         cyls_alt_matrices = coin.SoMFMatrix()
         cyls_main_matrices.setNum(number_of_main_cyls)
         cyls_alt_matrices.setNum(number_of_alt_cyls)
+        sph_ctr = 0
         main_ctr = 0
         alt_ctr = 0
         for i, vert in enumerate(vertices):
-            mat = coin.SbMatrix()
-            mat.setTranslate(coin.SbVec3f(*vert))
-            spheres_matrices.set1Value(i, mat)
-
+            if (i != 0) and (i != len(vertices) - 1):
+                mat = coin.SbMatrix()
+                mat.setTranslate(coin.SbVec3f(*vert))
+                spheres_matrices.set1Value(sph_ctr, mat)
+                sph_ctr += 1
             if (i != len(vertices)-1):
                 v2next = (vertices[i] - vertices[i+1])
                 # cylinders are created concentric to the Y-Axis
@@ -214,70 +275,5 @@ class ViewProviderWeldFeature:
         self.copies_of_spheres.matrix = spheres_matrices
         self.copies_of_cyls.matrix = cyls_main_matrices
         self.alt_copies_of_cyls.matrix = cyls_alt_matrices
-
-    def setup_weld_bead(self, fp):
-        geom_selection = fp.Base
-        bead_size = float(fp.WeldSize.getValueAs('mm'))
-
-        self.spheres.removeAllChildren()
-        self.odd_colored_cylinderes.removeAllChildren()
-        self.even_colored_cylinderes.removeAllChildren()
-
-        light = coin.SoDirectionalLight()
-        mat1 = coin.SoMaterial()
-        mat1.diffuseColor = fp.ViewObject.ShapeColor[:3]
-
-        mat2 = coin.SoMaterial()
-        mat2.diffuseColor = fp.ViewObject.AlternatingColor[:3]
-
-        # self.spheres.addChild(mat1)
-
-        if not geom_selection:
-            return
-        base_object, subelement_names = geom_selection
-        list_of_edges = [base_object.getSubObject(name) for name in subelement_names]
-        vertices = discretize_list_of_edges(list_of_edges, bead_size)
-        for i, vert in enumerate(vertices):
-            if (i != 0 and) (i != len(vertices)-1)
-            # add a sphere
-            sphere_translate = coin.SoTranslation()
-            sphere_translate.translation.setValue(coin.SbVec3f(*vert))
-            sphere = coin.SoSphere()
-            sphere.radius.setValue(bead_size*0.99)
-            sep = coin.SoSeparator()
-            # sep.addChild(light)
-            sep.addChild(mat1)
-            sep.addChild(sphere_translate)
-            sep.addChild(sphere)
-            self.spheres.addChild(sep)
-
-            if (i != len(vertices)-1):
-                v2next = (vertices[i] - vertices[i+1])
-                cyl = coin.SoCylinder()
-                cyl.radius.setValue(bead_size)
-                cyl.height.setValue(v2next.Length)
-                cyl.parts.setValue(coin.SoCylinder.SIDES)
-
-                cyl_transform = coin.SoTransform()
-                cyl_transform.translation.setValue(*(vert -0.5 * v2next))
-                cyl_axis = FreeCAD.Vector(0.0, 1.0, 0.0)
-                cyl_transform.rotation.setValue(
-                    coin.SbVec3f(*cyl_axis.cross(v2next)),
-                    math.acos(cyl_axis.dot(v2next) / (cyl_axis.Length * v2next.Length))
-                )
-
-                sep = coin.SoSeparator()
-                # sep.addChild(light)
-                if i % 2:
-                    sep.addChild(mat1)
-                else:
-                    sep.addChild(mat2)
-                sep.addChild(cyl_transform)
-                sep.addChild(cyl)
-
-                if i % 2:
-                    self.odd_colored_cylinderes.addChild(sep)
-                else:
-                    self.even_colored_cylinderes.addChild(sep)
-
-
+        # also need to change the endcaps
+        self._adjust_endcaps(fp)

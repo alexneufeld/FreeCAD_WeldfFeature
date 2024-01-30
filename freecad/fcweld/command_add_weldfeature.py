@@ -39,9 +39,9 @@ class AddWeldFeatureCommand:
             return
         obj = doc.addObject("App::FeaturePython", "WeldBead")
         WeldFeature(obj)
+        set_default_values(obj, self.DEFAULT_OBJECT_VALUES)
         ViewProviderWeldFeature(obj.ViewObject)
         # assign the selected reference geometry
-        set_default_values(obj, self.DEFAULT_OBJECT_VALUES)
         obj.Base = selection[0]
         # place the weld object in the tree view so that it is in the same geofeature
         # group as the referenced geometry.
