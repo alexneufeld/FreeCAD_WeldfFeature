@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
+  <name>WeldFeature</name>
+  <description></description>
+  <version>0.1.0</version>
+  <date>2024-01-29</date>
+  <maintainer email="alex.d.neufeld@gmail.com">Alex Neufeld</maintainer>
+  <license file="LICENSE">LGPLv2</license>
+  <url type="repository" branch="main">https://github.com/alexneufeld/FreeCAD_WeldfFeature</url>
+  <url type="readme">https://github.com/alexneufeld/FreeCAD_WeldfFeature/blob/main/README.md</url>
+  <icon>freecad/weldfeature/resources/WeldFeature.svg</icon>
+
+<!--  <content>
+    <workbench>
+      <classname>???</classname>
+      <subdirectory>./</subdirectory>
+      <tag>???</tag>
+    </workbench>
+  </content>-->
+
+</package>
