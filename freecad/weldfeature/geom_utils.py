@@ -55,7 +55,7 @@ class CompositeEdge:
         points = []
         firstparam, lastparam = self.ParameterRange
         for i in range(n):
-            points.append(self.valueAt(i/n*(lastparam-firstparam)))
+            points.append(self.valueAt(i / n * (lastparam - firstparam)))
         points.append(self.valueAt(lastparam))
         return points
 
@@ -64,8 +64,10 @@ class CompositeEdge:
         return (0.0, self.Length)
 
     def valueAt(self, param):
-        if (param  < self.ParameterRange[0]) or (param > self.ParameterRange[1]):
-            raise ValueError(f"Requested point ({param}) is outside the parameter range ({self.ParameterRange})")
+        if (param < self.ParameterRange[0]) or (param > self.ParameterRange[1]):
+            raise ValueError(
+                f"Requested point ({param}) is outside the parameter range ({self.ParameterRange})"
+            )
         running_total = 0.0
         for i in range(len(self._list_of_edges)):
             running_total += self._list_of_edges[i].Length
@@ -84,6 +86,7 @@ class CompositeEdge:
         value = the_edge.valueAt(firstparam + traverse * (lastparam - firstparam))
         return value
 
+
 def discretize_list_of_edges(edge_list, pitch):
     if len(edge_list) == 1:
         # special case for a single edge
@@ -95,6 +98,7 @@ def discretize_list_of_edges(edge_list, pitch):
     points = comp.discretize(number_to_split_into)
     print(points)
     return points
+
 
 def _discretize_list_of_edges(edge_list, pitch):
     """returns a list of FreeCAD.Vector

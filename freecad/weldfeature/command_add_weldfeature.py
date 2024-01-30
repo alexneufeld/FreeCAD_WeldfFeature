@@ -8,8 +8,8 @@ from .gui_utils import parse_and_clean_selection
 from .gui_utils import set_default_values
 from .gui_utils import get_best_default_object_colors
 
-class AddWeldFeatureCommand:
 
+class AddWeldFeatureCommand:
     DEFAULT_OBJECT_VALUES = {
         "WeldSize": FreeCAD.Units.Quantity("4 mm"),
         "IntermittentWeld": False,
@@ -25,17 +25,14 @@ class AddWeldFeatureCommand:
         return {
             "Pixmap": os.path.join(ICONPATH, "WeldFeature.svg"),
             "Menutext": "AddWeldFeatureCommand",
-            "tooltip": "Add a weld bead to the assembly"
+            "tooltip": "Add a weld bead to the assembly",
         }
 
     def Activated(self):
-
         doc = FreeCAD.ActiveDocument
         selection = parse_and_clean_selection()
         if len(selection) != 1:
-            FreeCAD.Console.PrintUserError(
-                "Select geometry from a single object.\n"
-            )
+            FreeCAD.Console.PrintUserError("Select geometry from a single object.\n")
             return
         obj = doc.addObject("App::FeaturePython", "WeldBead")
         WeldFeature(obj)

@@ -25,7 +25,7 @@ class WeldFeature:
             "App::PropertyEnumeration",
             "IntermittentWeldSpecification",
             "Weld",
-            "Method of specification for intermittent welds"
+            "Method of specification for intermittent welds",
         )
         obj.IntermittentWeldSpecification = [
             "Length-Pitch",
@@ -62,25 +62,25 @@ class WeldFeature:
             "App::PropertyBool",
             "FieldWeld",
             "WeldInformation",
-            "Whether this weld should be completed in the field"
+            "Whether this weld should be completed in the field",
         )
         obj.addProperty(
             "App::PropertyBool",
             "AlternatingWeld",
             "WeldInformation",
-            "Whether this weld alternates on either side of the selected shape"
+            "Whether this weld alternates on either side of the selected shape",
         )
         obj.addProperty(
             "App::PropertyBool",
             "AllAround",
             "WeldInformation",
-            "Whether this weld wrap all the way around the selected shape"
+            "Whether this weld wrap all the way around the selected shape",
         )
         obj.addProperty(
             "App::PropertyLength",
             "WeldLength",
             "WeldInformation",
-            "Computed Length of weld material in this weld object"
+            "Computed Length of weld material in this weld object",
         )
 
     def execute(self, obj):

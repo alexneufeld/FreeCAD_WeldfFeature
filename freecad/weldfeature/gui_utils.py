@@ -111,9 +111,11 @@ def parse_and_clean_selection():
         list_of_fixed_selections.append((the_actual_object, tuple(geom_subnames)))
     return list_of_fixed_selections
 
+
 def set_default_values(document_object, value_map):
     for k, v in value_map.items():
         setattr(document_object, k, v)
+
 
 class FreeCADColorUtils:
     @staticmethod
@@ -133,6 +135,7 @@ class FreeCADColorUtils:
     def rgba_to_hex(r, g, b, a) -> str:
         vals = tuple([int(x * 255) for x in (r, g, b, a)])
         return "#%0.2X%0.2X%0.2X%0.2X" % vals
+
 
 def get_best_default_object_colors(document_object):
     """Tries to choose a sensible default color for weld bead objects"""

@@ -32,14 +32,9 @@ class ViewProviderWeldFeature:
             "App::PropertyEnumeration",
             "EndCapStyle",
             "ObjectStyle",
-            "Geometry to include at the ends of weld beads"
+            "Geometry to include at the ends of weld beads",
         )
-        vobj.EndCapStyle = [
-            "Flat",
-            "Rounded",
-            "Pointed"
-        ]
-
+        vobj.EndCapStyle = ["Flat", "Rounded", "Pointed"]
 
         # initialize an empty list of vertexes to run the weld bead thru
         self._vertex_list = []
@@ -59,7 +54,7 @@ class ViewProviderWeldFeature:
             self._setup_weld_bead(fp)
         if prop == "WeldSize":
             # disallow really small weld sizes
-            new_size = float(fp.WeldSize.getValueAs('mm'))
+            new_size = float(fp.WeldSize.getValueAs("mm"))
             self.sphere.radius.setValue(0.99 * new_size)
             self.intermediate_cyl.radius.setValue(new_size)
             self._recompute_vertices(fp)
@@ -74,7 +69,7 @@ class ViewProviderWeldFeature:
             pass  # TODO
         return
 
-    def getDisplayModes(self,obj):
+    def getDisplayModes(self, obj):
         """
         Return a list of display modes.
         """
@@ -96,7 +91,7 @@ class ViewProviderWeldFeature:
     def dumps(self):
         return {"_vertex_list": [tuple(x) for x in self._vertex_list]}
 
-    def loads(self,state):
+    def loads(self, state):
         self._vertex_list = [FreeCAD.Vector(x) for x in state.get("_vertex_list", [])]
         return None
 
@@ -157,7 +152,7 @@ class ViewProviderWeldFeature:
         if not self._vertex_list:
             return
         self.copies_of_endcaps.removeAllChildren()
-        cap_size = float(fp.WeldSize.getValueAs('mm'))
+        cap_size = float(fp.WeldSize.getValueAs("mm"))
         match fp.ViewObject.EndCapStyle:
             case "Flat":
                 cap_shape = coin.SoCylinder()
@@ -173,7 +168,7 @@ class ViewProviderWeldFeature:
                 cone.height.setValue(cap_size)
                 cone.parts.setValue(coin.SoCone.SIDES)
                 translate = coin.SoTranslation()
-                translate.translation.setValue(coin.SbVec3f(0.0, 0.5*cap_size, 0.0))
+                translate.translation.setValue(coin.SbVec3f(0.0, 0.5 * cap_size, 0.0))
                 cap_shape = coin.SoSeparator()
                 cap_shape.addChild(translate)
                 cap_shape.addChild(cone)
@@ -196,13 +191,13 @@ class ViewProviderWeldFeature:
         startcap_mat.setTransform(
             coin.SbVec3f(*startcap_base),  # translation
             coin.SbRotation(startcap_rot_axis, startcap_rot_angle),  # rotation
-            coin.SbVec3f(1.0, 1.0, 1.0)  # scale
+            coin.SbVec3f(1.0, 1.0, 1.0),  # scale
         )
         endcap_mat = coin.SbMatrix()
         endcap_mat.setTransform(
             coin.SbVec3f(*endcap_base),  # translation
             coin.SbRotation(endcap_rot_axis, endcap_rot_angle),  # rotation
-            coin.SbVec3f(1.0, 1.0, 1.0)  # scale
+            coin.SbVec3f(1.0, 1.0, 1.0),  # scale
         )
         endcap_matrices.set1Value(0, startcap_mat)
         endcap_matrices.set1Value(1, endcap_mat)
@@ -210,7 +205,7 @@ class ViewProviderWeldFeature:
 
     def _recompute_vertices(self, fp):
         """Call this as little as possible to save compute time"""
-        bead_size = float(fp.WeldSize.getValueAs('mm'))
+        bead_size = float(fp.WeldSize.getValueAs("mm"))
         if bead_size < 1e-1:
             FreeCAD.Console.PrintUserError(
                 "Weld sizes of less than 0.1mm are not supported\n"
@@ -243,26 +238,25 @@ class ViewProviderWeldFeature:
             if (i != 0) and (i != len(vertices) - 1):
                 # don't show the sphere when the next, current, and last points
                 # are nearly colinear
-                x =  (vert-vertices[i-1]).getAngle(vertices[i+1] - vert)/ math.pi
+                x = (vert - vertices[i - 1]).getAngle(vertices[i + 1] - vert) / math.pi
                 if x > 1e-3:
                     mat = coin.SbMatrix()
                     mat.setTranslate(coin.SbVec3f(*vert))
                     sph_mat_list.append(mat)
                     sph_ctr += 1
-            if (i != len(vertices)-1):
-                v2next = (vertices[i] - vertices[i+1])
+            if i != len(vertices) - 1:
+                v2next = vertices[i] - vertices[i + 1]
                 # cylinders are created concentric to the Y-Axis
                 cyl_axis = FreeCAD.Vector(0.0, 1.0, 0.0)
                 cyl_rotation_axis = coin.SbVec3f(*cyl_axis.cross(v2next))
                 cyl_rotation_angle = math.acos(
-                    cyl_axis.dot(v2next) /
-                    (cyl_axis.Length * v2next.Length)
-                    )
+                    cyl_axis.dot(v2next) / (cyl_axis.Length * v2next.Length)
+                )
                 mat2 = coin.SbMatrix()
                 mat2.setTransform(
-                    coin.SbVec3f(*(vert -0.5 * v2next)),  # translation
+                    coin.SbVec3f(*(vert - 0.5 * v2next)),  # translation
                     coin.SbRotation(cyl_rotation_axis, cyl_rotation_angle),  # rotation
-                    coin.SbVec3f(1.0, v2next.Length, 1.0)  # scale
+                    coin.SbVec3f(1.0, v2next.Length, 1.0),  # scale
                 )
                 if not i % 2:
                     cyls_main_matrices.set1Value(main_ctr, mat2)
