@@ -16,7 +16,7 @@ def parse_and_clean_selection():
     doc = FreeCAD.ActiveDocument
     complete_un_messed_up_selection = FreeCADGui.Selection.getCompleteSelection(0)
     # We must use resolve=0 in the second argument, otherwise important
-    # information about the selection heirarchy is just lost...
+    # information about the selection hierarchy is just lost...
     list_of_fixed_selections = []
     for selitem in complete_un_messed_up_selection:
         # skip selection items that don't have SubObjects
@@ -37,7 +37,7 @@ def parse_and_clean_selection():
         # I.E.: we need to know that Link.Edge2 was what the user actually selected
         # AFAIK this isn't easy to do for 2 main reasons
         # - backwards compatibility issues with App:Links and Toponaming
-        # - many comands (such as partdesign stuff) actually want Chamfer.Edge2
+        # - many commands (such as partdesign stuff) actually want Chamfer.Edge2
         #   in this sort of situation
         if not selitem.HasSubObjects:
             # we need some geometry (edges, faces, points) to be selected
@@ -64,7 +64,7 @@ def parse_and_clean_selection():
                 # Most likely we iterated to the end of the subelement chain without
                 # otherwise breaking the loop somehow. If the current sub_name is the
                 # last in the chain, it is most likely something like 'Edge010' or
-                # 'Face002', and no error has occured.
+                # 'Face002', and no error has occurred.
                 if sub_index + 1 == len(sub_names):
                     continue
                 else:
@@ -82,7 +82,7 @@ def parse_and_clean_selection():
                 # end up placing our object in an incorrect location in the 3D view.
                 continue
             if doc_obj.isDerivedFrom("PartDesign::Feature"):
-                # PartDesign bodies have some particularily nasty selection behaviour
+                # PartDesign bodies have some particularly nasty selection behaviour
                 # By default, a PartDesign::Body's ViewProvider's 'DisplayModeBody'
                 # property is set to True. This allows correct selection of Body
                 # feature geometry when creating chamfers or adding sketches, for

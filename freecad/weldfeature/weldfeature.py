@@ -24,7 +24,7 @@ class WeldFeature:
             "App::PropertyBool",
             "IntermittentWeld",
             "Weld",
-            "Whether to model an intermittent or continous weld",
+            "Whether to model an intermittent or continuous weld",
         )
         obj.addProperty(
             "App::PropertyEnumeration",
@@ -35,7 +35,7 @@ class WeldFeature:
         obj.IntermittentWeldSpecification = [
             "Length-Pitch",
             "Length-Number",
-            # "Pitch-Number",  # This would leave the weld length ambigous?
+            # "Pitch-Number",  # This would leave the weld length ambiguous?
         ]
         obj.addProperty(
             "App::PropertyInteger",
@@ -59,7 +59,7 @@ class WeldFeature:
             "App::PropertyLength",
             "IntermittentWeldOffset",
             "Weld",
-            "Offest of the start of the intermittent weld pattern "
+            "Offset of the start of the intermittent weld pattern "
             "from the start of selected edges",
         )
 

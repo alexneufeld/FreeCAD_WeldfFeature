@@ -150,7 +150,7 @@ def _discretize_list_of_edges(edge_list, pitch):
         2,
     ] and numbers_of_vertexes_of_degree_n[1] > 2:
         FreeCAD.Console.PrintLog(
-            "Multiple discontinous edge sets selected."
+            "Multiple discontinuous edge sets selected."
             " This may cause unexpected behaviour!\n"
         )
         # is_closed = False
@@ -158,7 +158,7 @@ def _discretize_list_of_edges(edge_list, pitch):
     if [k for k in numbers_of_vertexes_of_degree_n.keys() if k > 2] != []:
         FreeCAD.Console.PrintLog(
             "One or more pairs of vertices in the selected edge set "
-            "are conected by more than one edge."
+            "are connected by more than one edge."
             " This may cause unexpected behaviour!\n"
         )
         # is_closed = False
