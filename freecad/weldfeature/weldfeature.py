@@ -92,7 +92,7 @@ class WeldFeature:
     def execute(self, obj):
         pass
 
-    def onChanged(self, obj, prop):
+    def onChanged(self, obj, prop: str):
         if prop == "Base":
             print("onchnaged of featurepython object")
             self._recompute_vertices(obj)
@@ -135,7 +135,7 @@ class WeldFeature:
     def dumps(self):
         return {"_vertex_list": [tuple(x) for x in self._vertex_list]}
 
-    def loads(self, state):
+    def loads(self, state: dict):
         self._vertex_list = [FreeCAD.Vector(x) for x in state.get("_vertex_list", [])]
         return None
 
@@ -154,7 +154,7 @@ class WeldFeature:
             return
         base_object, subelement_names = geom_selection
         list_of_edges = [base_object.getSubObject(name) for name in subelement_names]
-        # when restoring documents, all edges may breifly be null for some reason
+        # when restoring documents, all edges may briefly be null for some reason
         amount_of_null_shapes = len(
             [x for x in [edge.isNull() for edge in list_of_edges] if x]
         )

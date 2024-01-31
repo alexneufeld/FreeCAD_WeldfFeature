@@ -84,7 +84,7 @@ class ViewProviderWeldFeature:
         return os.path.join(ICONPATH, "WeldFeature.svg")
 
     def dumps(self):
-        return
+        return None
 
     def loads(self, state):
         return None
