@@ -1,4 +1,5 @@
 import FreeCAD
+import Part
 from .geom_utils import discretize_list_of_edges
 
 
@@ -9,7 +10,7 @@ class WeldFeature:
         # supported properties
         # TODO: when we decide to support multiple object selections in one WeldFeature, change this property type to App::PropertyXLinkSubList
         obj.addProperty(
-            "App::PropertyXLinkSub",
+            "App::PropertyXLinkSubList",
             "Base",
             "Base",
             "Reference geometry for the weld bead. "
@@ -94,7 +95,6 @@ class WeldFeature:
 
     def onChanged(self, obj, prop: str):
         if prop == "Base":
-            print("onchnaged of featurepython object")
             self._recompute_vertices(obj)
         if prop == "WeldSize":
             self._recompute_vertices(obj)
@@ -133,10 +133,17 @@ class WeldFeature:
             pass
 
     def dumps(self):
-        return {"_vertex_list": [tuple(x) for x in self._vertex_list]}
+        return {
+            "_vertex_list": [
+                [tuple(x) for x in sublist] for sublist in self._vertex_list
+            ]
+        }
 
     def loads(self, state: dict):
-        self._vertex_list = [FreeCAD.Vector(x) for x in state.get("_vertex_list", [])]
+        self._vertex_list = [
+            [FreeCAD.Vector(x) for x in sublist]
+            for sublist in state.get("_vertex_list", [])
+        ]
         return None
 
     def _recompute_vertices(self, obj):
@@ -147,18 +154,35 @@ class WeldFeature:
                 "Weld sizes of less than 0.1mm are not supported\n"
             )
             return
+        # this should be a list of tuples, something like:
+        # [(<obj001>, ['Edge1', 'Edge2']), (<obj002>, ['Edge1', 'Edge3'])]
         geom_selection = obj.Base
-        print(f"{geom_selection=}")
+
         if not geom_selection:
             self._vertex_list = []
             return
-        base_object, subelement_names = geom_selection
-        list_of_edges = [base_object.getSubObject(name) for name in subelement_names]
+        unsorted_edges = []
+        for subselection in geom_selection:
+            base_object, subelement_names = subselection
+            # flatten the list of selected document objects.
+            # We'll then re-sort them into groups of connected edges,
+            # ignoring which document objects those edges originally belonged to.
+            unsorted_edges.extend(
+                [base_object.getSubObject(name) for name in subelement_names]
+            )
         # when restoring documents, all edges may briefly be null for some reason
         amount_of_null_shapes = len(
-            [x for x in [edge.isNull() for edge in list_of_edges] if x]
+            [x for x in [edge.isNull() for edge in unsorted_edges] if x]
         )
-        if amount_of_null_shapes == len(list_of_edges):
+        if amount_of_null_shapes == len(unsorted_edges):
             return
-        vertices = discretize_list_of_edges(list_of_edges, bead_size)
-        self._vertex_list = vertices
+        sorted_edges = Part.sortEdges(unsorted_edges)
+
+        lists_of_vertexes = []
+
+        # TODO: this will cause errors with objects in differing geofeature groups
+        for edge_group in sorted_edges:
+            lists_of_vertexes.append(discretize_list_of_edges(edge_group, bead_size))
+        # the final vertex list is a nested list, where each sublist is a smooth
+        # discretization of multiple connected edges
+        self._vertex_list = lists_of_vertexes

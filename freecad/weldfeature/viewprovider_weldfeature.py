@@ -3,6 +3,7 @@ import math
 import FreeCAD
 from freecad.weldfeature import ICONPATH
 import pivy.coin as coin
+from .gui_utils import get_complementary_shade
 
 
 class ViewProviderWeldFeature:
@@ -28,6 +29,13 @@ class ViewProviderWeldFeature:
         # default to alternating colored weld
         vobj.DrawWithAlternatingColors = True
         vobj.addProperty(
+            "App::PropertyBool",
+            "AutoSetAlternatingColor",
+            "ObjectStyle",
+            "Auto-set the alternating color",
+        )
+        vobj.AutoSetAlternatingColor = True
+        vobj.addProperty(
             "App::PropertyEnumeration",
             "EndCapStyle",
             "ObjectStyle",
@@ -45,7 +53,6 @@ class ViewProviderWeldFeature:
 
     def updateData(self, fp, prop):
         if prop == "Base":
-            print("updatedata of viewprovide object")
             # recompute the entire weld bead shape
             self._setup_weld_bead(fp)
         if prop == "WeldSize":
@@ -74,11 +81,33 @@ class ViewProviderWeldFeature:
         return "Shaded"
 
     def onChanged(self, vp, prop):
-        FreeCAD.Console.PrintMessage("Change property: " + str(prop) + "\n")
-        if prop in ["ShapeColor", "AlternatingColor", "DrawWithAlternatingColors"]:
-            self._set_geom_colors(vp)
         if prop == "EndCapStyle":
             self._adjust_endcaps(vp.Object)
+        if prop == "AutoSetAlternatingColor":
+            if vp.AutoSetAlternatingColor:
+                rgb = vp.ShapeColor[:3]
+                alternate_color = (*get_complementary_shade(rgb), 1.0)
+                vp.setPropertyStatus("AlternatingColor", "-ReadOnly")
+                vp.AlternatingColor = alternate_color
+                vp.setPropertyStatus("AlternatingColor", "ReadOnly")
+            else:
+                vp.setPropertyStatus("AlternatingColor", "-ReadOnly")
+        if prop == "DrawWithAlternatingColors":
+            if vp.DrawWithAlternatingColors:
+                vp.setPropertyStatus("AlternatingColor", "-Hidden")
+                vp.setPropertyStatus("AutoSetAlternatingColor", "-Hidden")
+            else:
+                vp.setPropertyStatus("AlternatingColor", "Hidden")
+                vp.setPropertyStatus("AutoSetAlternatingColor", "Hidden")
+        if prop == "ShapeColor":
+            if vp.AutoSetAlternatingColor:
+                rgb = vp.ShapeColor[:3]
+                alternate_color = (*get_complementary_shade(rgb), 1.0)
+                vp.setPropertyStatus("AlternatingColor", "-ReadOnly")
+                vp.AlternatingColor = alternate_color
+                vp.setPropertyStatus("AlternatingColor", "ReadOnly")
+        if prop in ["ShapeColor", "AlternatingColor", "DrawWithAlternatingColors"]:
+            self._set_geom_colors(vp)
 
     def getIcon(self):
         return os.path.join(ICONPATH, "WeldFeature.svg")
@@ -169,87 +198,95 @@ class ViewProviderWeldFeature:
                 cap_shape.addChild(cone)
 
         self.copies_of_endcaps.addChild(cap_shape)
+        cap_matrix_list = []
+        for sublist in vertex_list:
+            startcap_base = sublist[0]
+            endcap_base = sublist[-1]
+            startcap_dir = (startcap_base - sublist[1]).normalize()
+            endcap_dir = (endcap_base - sublist[-2]).normalize()
+            primitive_axis = FreeCAD.Vector(0.0, 1.0, 0.0)
+
+            startcap_rot_axis = coin.SbVec3f(*primitive_axis.cross(startcap_dir))
+            endcap_rot_axis = coin.SbVec3f(*primitive_axis.cross(endcap_dir))
+            startcap_rot_angle = math.acos(primitive_axis.dot(startcap_dir))
+            endcap_rot_angle = math.acos(primitive_axis.dot(endcap_dir))
+
+            startcap_mat = coin.SbMatrix()
+            startcap_mat.setTransform(
+                coin.SbVec3f(*startcap_base),  # translation
+                coin.SbRotation(startcap_rot_axis, startcap_rot_angle),  # rotation
+                coin.SbVec3f(1.0, 1.0, 1.0),  # scale
+            )
+            endcap_mat = coin.SbMatrix()
+            endcap_mat.setTransform(
+                coin.SbVec3f(*endcap_base),  # translation
+                coin.SbRotation(endcap_rot_axis, endcap_rot_angle),  # rotation
+                coin.SbVec3f(1.0, 1.0, 1.0),  # scale
+            )
+            cap_matrix_list.extend([startcap_mat, endcap_mat])
+
         endcap_matrices = coin.SoMFMatrix()
-        endcap_matrices.setNum(2)  # change this if supporting multiple segments
-        startcap_base = vertex_list[0]
-        endcap_base = vertex_list[-1]
-        startcap_dir = (startcap_base - vertex_list[1]).normalize()
-        endcap_dir = (endcap_base - vertex_list[-2]).normalize()
-        primitive_axis = FreeCAD.Vector(0.0, 1.0, 0.0)
-
-        startcap_rot_axis = coin.SbVec3f(*primitive_axis.cross(startcap_dir))
-        endcap_rot_axis = coin.SbVec3f(*primitive_axis.cross(endcap_dir))
-        startcap_rot_angle = math.acos(primitive_axis.dot(startcap_dir))
-        endcap_rot_angle = math.acos(primitive_axis.dot(endcap_dir))
-
-        startcap_mat = coin.SbMatrix()
-        startcap_mat.setTransform(
-            coin.SbVec3f(*startcap_base),  # translation
-            coin.SbRotation(startcap_rot_axis, startcap_rot_angle),  # rotation
-            coin.SbVec3f(1.0, 1.0, 1.0),  # scale
-        )
-        endcap_mat = coin.SbMatrix()
-        endcap_mat.setTransform(
-            coin.SbVec3f(*endcap_base),  # translation
-            coin.SbRotation(endcap_rot_axis, endcap_rot_angle),  # rotation
-            coin.SbVec3f(1.0, 1.0, 1.0),  # scale
-        )
-        endcap_matrices.set1Value(0, startcap_mat)
-        endcap_matrices.set1Value(1, endcap_mat)
+        endcap_matrices.setNum(len(cap_matrix_list))
+        for i, mat in enumerate(cap_matrix_list):
+            endcap_matrices.set1Value(i, mat)
         self.copies_of_endcaps.matrix = endcap_matrices
 
     def _setup_weld_bead(self, fp):
-        vertices = fp.Proxy._vertex_list
-        if not vertices:
+        superlist_of_vertices = fp.Proxy._vertex_list
+        if not superlist_of_vertices:
             return
-        number_of_main_cyls = len(vertices) // 2
-        number_of_alt_cyls = len(vertices) - number_of_main_cyls - 1
-        cyls_main_matrices = coin.SoMFMatrix()
-        cyls_alt_matrices = coin.SoMFMatrix()
-        cyls_main_matrices.setNum(number_of_main_cyls)
-        cyls_alt_matrices.setNum(number_of_alt_cyls)
-        sph_ctr = 0
-        main_ctr = 0
-        alt_ctr = 0
         sph_mat_list = []
-        for i, vert in enumerate(vertices):
-            if (i != 0) and (i != len(vertices) - 1):
-                # don't show the sphere when the next, current, and last points
-                # are nearly colinear
-                x = (vert - vertices[i - 1]).getAngle(vertices[i + 1] - vert) / math.pi
-                if x > 1e-3:
-                    mat = coin.SbMatrix()
-                    mat.setTranslate(coin.SbVec3f(*vert))
-                    sph_mat_list.append(mat)
-                    sph_ctr += 1
-            if i != len(vertices) - 1:
-                v2next = vertices[i] - vertices[i + 1]
-                # cylinders are created concentric to the Y-Axis
-                cyl_axis = FreeCAD.Vector(0.0, 1.0, 0.0)
-                cyl_rotation_axis = coin.SbVec3f(*cyl_axis.cross(v2next))
-                cyl_rotation_angle = math.acos(
-                    cyl_axis.dot(v2next) / (cyl_axis.Length * v2next.Length)
-                )
-                mat2 = coin.SbMatrix()
-                mat2.setTransform(
-                    coin.SbVec3f(*(vert - 0.5 * v2next)),  # translation
-                    coin.SbRotation(cyl_rotation_axis, cyl_rotation_angle),  # rotation
-                    coin.SbVec3f(1.0, v2next.Length, 1.0),  # scale
-                )
-                if not i % 2:
-                    cyls_main_matrices.set1Value(main_ctr, mat2)
-                    main_ctr += 1
-                else:
-                    cyls_alt_matrices.set1Value(alt_ctr, mat2)
-                    alt_ctr += 1
+        main_cyl_mat_list = []
+        alt_cyl_mat_list = []
+        for vertices in superlist_of_vertices:
+            for i, vert in enumerate(vertices):
+                if (i != 0) and (i != len(vertices) - 1):
+                    # don't show the sphere when the next, current, and last points
+                    # are nearly colinear
+                    x = (vert - vertices[i - 1]).getAngle(
+                        vertices[i + 1] - vert
+                    ) / math.pi
+                    if x > 1e-3:
+                        mat = coin.SbMatrix()
+                        mat.setTranslate(coin.SbVec3f(*vert))
+                        sph_mat_list.append(mat)
+                if i != len(vertices) - 1:
+                    v2next = vertices[i] - vertices[i + 1]
+                    # cylinders are created concentric to the Y-Axis
+                    cyl_axis = FreeCAD.Vector(0.0, 1.0, 0.0)
+                    cyl_rotation_axis = coin.SbVec3f(*cyl_axis.cross(v2next))
+                    cyl_rotation_angle = math.acos(
+                        cyl_axis.dot(v2next) / (cyl_axis.Length * v2next.Length)
+                    )
+                    mat2 = coin.SbMatrix()
+                    mat2.setTransform(
+                        coin.SbVec3f(*(vert - 0.5 * v2next)),  # translation
+                        coin.SbRotation(
+                            cyl_rotation_axis, cyl_rotation_angle
+                        ),  # rotation
+                        coin.SbVec3f(1.0, v2next.Length, 1.0),  # scale
+                    )
+                    if not i % 2:
+                        main_cyl_mat_list.append(mat2)
+                    else:
+                        alt_cyl_mat_list.append(mat2)
 
         spheres_matrices = coin.SoMFMatrix()
-        spheres_matrices.setNum(sph_ctr)
+        spheres_matrices.setNum(len(sph_mat_list))
         for i, mat in enumerate(sph_mat_list):
             spheres_matrices.set1Value(i, mat)
         self.copies_of_spheres.matrix = spheres_matrices
 
+        cyls_main_matrices = coin.SoMFMatrix()
+        cyls_main_matrices.setNum(len(main_cyl_mat_list))
+        for i, mat in enumerate(main_cyl_mat_list):
+            cyls_main_matrices.set1Value(i, mat)
         self.copies_of_cyls.matrix = cyls_main_matrices
+
+        cyls_alt_matrices = coin.SoMFMatrix()
+        cyls_alt_matrices.setNum(len(alt_cyl_mat_list))
+        for i, mat in enumerate(alt_cyl_mat_list):
+            cyls_alt_matrices.set1Value(i, mat)
         self.alt_copies_of_cyls.matrix = cyls_alt_matrices
         # also need to change the endcaps
         self._adjust_endcaps(fp)

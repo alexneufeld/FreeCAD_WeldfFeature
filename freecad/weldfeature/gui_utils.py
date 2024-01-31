@@ -13,21 +13,25 @@ def parse_and_clean_selection():
     # TODO: also investigate usage of the expandSubName and flattenSubName methods
     # of document objects
 
-    FreeCAD.Console.PrintLog("Parsing using getSelectionEx...\n")
-
     doc = FreeCAD.ActiveDocument
-    complete_un_messed_up_selection = FreeCADGui.Selection.getSelectionEx(doc.Name, 0)
-    # getSelectionEx(FreeCADGui.ActiveDocument.Name, 0) returns a list of selection
-    # objects. We must use resolve=0 in the second argument, otherwise important
+    complete_un_messed_up_selection = FreeCADGui.Selection.getCompleteSelection(0)
+    # We must use resolve=0 in the second argument, otherwise important
     # information about the selection heirarchy is just lost...
     list_of_fixed_selections = []
     for selitem in complete_un_messed_up_selection:
-        # we need to parse the required info by brute force
-        selitem_full_name_str = selitem.FullName
-        FreeCAD.Console.PrintLog(
-            f"full path for this selection item is: {selitem_full_name_str}\n"
-        )
-        # this is something like:
+        # skip selection items that don't have SubObjects
+        if (
+            selitem.SubElementNames == ("",)
+            or not selitem.HasSubObjects
+            or len(selitem.SubElementNames) == 1
+            and selitem.SubElementNames[0].endswith(".")
+        ):
+            FreeCAD.Console.PrintUserWarning(
+                "Skipping selected item with no subobjects"
+            )
+            continue
+        # we need to parse the required info by brute force. E.G.:
+        # selitem.FullName is something like:
         # "(App.getDocument('Unnamed').getObject('Part'),['Link.Chamfer.Edge2',])"
         # we care about these: ----------------------------^------------^
         # I.E.: we need to know that Link.Edge2 was what the user actually selected
@@ -105,9 +109,6 @@ def parse_and_clean_selection():
         # finally, also grab the descriptive names of each of the geometric elements
         # selected:
         geom_subnames = [list(x.split("."))[-1] for x in selitem.SubElementNames]
-        FreeCAD.Console.PrintLog("Parsed selection\n")
-        FreeCAD.Console.PrintLog(f"Selected item: {the_actual_object.Name}\n")
-        FreeCAD.Console.PrintLog(f"Selected subelements: {', '.join(geom_subnames)}\n")
         list_of_fixed_selections.append((the_actual_object, tuple(geom_subnames)))
     return list_of_fixed_selections
 
@@ -137,6 +138,18 @@ class FreeCADColorUtils:
         return "#%0.2X%0.2X%0.2X%0.2X" % vals
 
 
+def get_complementary_shade(rgb: tuple):
+    h, s, v = colorsys.rgb_to_hsv(*rgb)
+    change = 0.25
+    if v <= 0.5:
+        # the alternate color is the base color, but 25% lighter
+        new_v = v + change
+    elif v > 0.5:
+        # the alternate color is the base color, but 25% darker
+        new_v = v - change
+    return colorsys.hsv_to_rgb(h, s, new_v)
+
+
 def get_best_default_object_colors(document_object):
     """Tries to choose a sensible default color for weld bead objects"""
     base_color = None
@@ -152,13 +165,6 @@ def get_best_default_object_colors(document_object):
         base_color = FreeCADColorUtils.int_to_rgba(color_int)
     # choose an alternate color from the base color:
     rgb = base_color[:3]
-    h, s, v = colorsys.rgb_to_hsv(*rgb)
-    change = 0.25
-    if v <= 0.5:
-        # the alternate color is the base color, but 25% lighter
-        new_v = v + change
-    elif v > 0.5:
-        # the alternate color is the base color, but 25% darker
-        new_v = v - change
-    alternate_color = (*colorsys.hsv_to_rgb(h, s, new_v), 1.0)
+    alternate_color = (*get_complementary_shade(rgb), 1.0)
+
     return (base_color, alternate_color)
