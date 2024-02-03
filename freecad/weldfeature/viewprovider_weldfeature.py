@@ -54,6 +54,7 @@ class ViewProviderWeldFeature:
     def updateData(self, fp, prop):
         weld_position_properties = [
             "Base",
+            "PropagateSelection",
             "IntermittentWeld",
             "IntermittentWeldPitch",
             "IntermittentWeldLength",

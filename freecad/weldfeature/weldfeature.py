@@ -3,6 +3,7 @@ import FreeCAD
 import Part
 from .geom_utils import discretize_list_of_edges
 from .geom_utils import discretize_intermittent
+from .tangent_edges import expand_selection_to_geometry
 
 
 class WeldFeature:
@@ -26,6 +27,8 @@ class WeldFeature:
         obj.addProperty(
             "App::PropertyLength", "WeldSize", "Weld", "Size of the weld bead"
         )
+        # set this immediately to avoid ever recomputing with a non-usable value
+        obj.WeldSize = FreeCAD.Units.Quantity("4.0 mm")
         # properties for intermittent welds
         obj.addProperty(
             "App::PropertyBool",
@@ -88,6 +91,7 @@ class WeldFeature:
     def onChanged(self, obj, prop: str):
         non_informational_properties = [
             "Base",
+            "PropagateSelection",
             "WeldSize",
             "IntermittentWeld",
             "IntermittentWeldPitch",
@@ -141,15 +145,9 @@ class WeldFeature:
         if not geom_selection:
             self._vertex_list = []
             return
-        unsorted_edges = []
-        for subselection in geom_selection:
-            base_object, subelement_names = subselection
-            # flatten the list of selected document objects.
-            # We'll then re-sort them into groups of connected edges,
-            # ignoring which document objects those edges originally belonged to.
-            unsorted_edges.extend(
-                [base_object.getSubObject(name) for name in subelement_names]
-            )
+        unsorted_edges = expand_selection_to_geometry(
+            geom_selection, obj.PropagateSelection
+        )
         # when restoring documents, all edges may briefly be null for some reason
         amount_of_null_shapes = len(
             [x for x in [edge.isNull() for edge in unsorted_edges] if x]
