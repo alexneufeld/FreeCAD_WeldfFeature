@@ -185,7 +185,7 @@ class WeldFeature:
         function calculates the total path length of weld using the simple
         cumulative-distance-between-points method.
         This has some numerical inaccuracy vs. the edge length of the originally
-        selected edges. However, this discrepency is minimal for reasonable weld
+        selected edges. However, this discrepancy is minimal for reasonable weld
         bead sizes, and this method works seamlessly with intermittent welds
         """
         running_total = 0.0
