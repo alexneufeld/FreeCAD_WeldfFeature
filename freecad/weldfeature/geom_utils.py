@@ -31,21 +31,24 @@ class CompositeEdge:
         self._list_of_lengths = [x.Length for x in self._list_of_edges]
         self._should_flip_list = []
         is_first = True
-        for index, edge in enumerate(self._list_of_edges):
-            if is_first:
-                is_first = False
-                next_edge = self._list_of_edges[1]
-                if not should_flip_edges(edge, next_edge)[0]:
-                    should_flip = True
+        if len(self._list_of_edges) > 1:
+            for index, edge in enumerate(self._list_of_edges):
+                if is_first:
+                    is_first = False
+                    next_edge = self._list_of_edges[1]
+                    if not should_flip_edges(edge, next_edge)[0]:
+                        should_flip = True
+                    else:
+                        should_flip = False
                 else:
-                    should_flip = False
-            else:
-                last_edge = self._list_of_edges[index - 1]
-                if not should_flip_edges(last_edge, edge)[1]:
-                    should_flip = True
-                else:
-                    should_flip = False
-            self._should_flip_list.append(not should_flip)
+                    last_edge = self._list_of_edges[index - 1]
+                    if not should_flip_edges(last_edge, edge)[1]:
+                        should_flip = True
+                    else:
+                        should_flip = False
+                self._should_flip_list.append(not should_flip)
+        else:
+            self._should_flip_list = None
 
     @property
     def Length(self):
@@ -68,6 +71,13 @@ class CompositeEdge:
             raise ValueError(
                 f"Requested point ({param}) is outside the parameter range ({self.ParameterRange})"
             )
+        # shortcut for single edges
+        if len(self._list_of_edges) == 1:
+            e = self._list_of_edges[0]
+            return e.valueAt(
+                e.FirstParameter
+                + (e.LastParameter - e.FirstParameter) * param / e.Length
+            )
         running_total = 0.0
         for i in range(len(self._list_of_edges)):
             running_total += self._list_of_edges[i].Length
@@ -87,19 +97,38 @@ class CompositeEdge:
         return value
 
 
-def discretize_list_of_edges(edge_list, pitch):
-    if len(edge_list) == 1:
-        # special case for a single edge
-        comp = edge_list[0]
-    else:
-        comp = CompositeEdge(edge_list)
+def discretize_list_of_edges(edge_list, spacing):
+    comp = CompositeEdge(edge_list)
     total_edge_length = comp.Length
-    number_to_split_into = max(2, round(total_edge_length / pitch))
+    number_to_split_into = max(2, math.floor(total_edge_length / spacing))
     points = comp.discretize(number_to_split_into)
     return points
 
 
-def _discretize_list_of_edges(edge_list, pitch):
+def discretize_intermittent(
+    edge_list: list[Part.Edge],
+    spacing: float,
+    stitch_length: float,
+    pitch: float,
+    start_offset: float,
+):
+    points = []
+    comp = CompositeEdge(edge_list)
+    i = start_offset
+
+    number_to_split_into = max(2, math.floor(stitch_length / spacing))
+
+    while i + stitch_length < comp.Length:
+        this_stitch = []
+        for j in range(number_to_split_into + 1):
+            pos = i + stitch_length / number_to_split_into * j
+            this_stitch.append(comp.valueAt(pos))
+        points.append(this_stitch)
+        i += pitch
+    return points
+
+
+def _discretize_list_of_edges(edge_list, spacing):
     """returns a list of FreeCAD.Vector
     This function should be supplied a list of connected edges.
     They don't neccesarliy need to be in order of connection
@@ -175,7 +204,7 @@ def _discretize_list_of_edges(edge_list, pitch):
     if len(sorted_edges) == 1:
         # special case for a single edge
         return sorted_edges[0].discretize(
-            max([2, math.floor(sorted_edges[0].Length / pitch)])
+            max([2, math.floor(sorted_edges[0].Length / spacing)])
         )
 
     for index, edge in enumerate(sorted_edges):
@@ -195,7 +224,7 @@ def _discretize_list_of_edges(edge_list, pitch):
             else:
                 should_flip = False
         should_flip = not should_flip
-        fn = max([2, math.floor(edge.Length / pitch)])
+        fn = max([2, math.floor(edge.Length / spacing)])
         points = edge.discretize(fn)
         if should_flip:
             points.reverse()

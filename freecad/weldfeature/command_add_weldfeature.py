@@ -11,10 +11,10 @@ from .gui_utils import get_best_default_object_colors
 
 class AddWeldFeatureCommand:
     DEFAULT_OBJECT_VALUES = {
+        "PropagateSelection": False,
         "WeldSize": FreeCAD.Units.Quantity("4 mm"),
         "IntermittentWeld": False,
-        "NumberOfIntermittentWelds": 2,
-        "IntermittentWeldSpacing": FreeCAD.Units.Quantity("50 mm"),
+        "IntermittentWeldPitch": FreeCAD.Units.Quantity("50 mm"),
         "IntermittentWeldLength": "15 mm",
         "FieldWeld": False,
         "AlternatingWeld": False,

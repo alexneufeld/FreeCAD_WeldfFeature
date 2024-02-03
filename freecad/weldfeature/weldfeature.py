@@ -1,6 +1,8 @@
+from itertools import starmap
 import FreeCAD
 import Part
 from .geom_utils import discretize_list_of_edges
+from .geom_utils import discretize_intermittent
 
 
 class WeldFeature:
@@ -8,18 +10,23 @@ class WeldFeature:
         obj.Proxy = self
         # add_property(type, name, section, description)
         # supported properties
-        # TODO: when we decide to support multiple object selections in one WeldFeature, change this property type to App::PropertyXLinkSubList
         obj.addProperty(
             "App::PropertyXLinkSubList",
             "Base",
             "Base",
             "Reference geometry for the weld bead. "
-            "Multiple faces, edges, and points may be selected.",
+            "Multiple faces or edges may be selected",
         )
         obj.addProperty(
-            "App::PropertyLength", "WeldSize", "Weld", "Size of the weld bead."
+            "App::PropertyBool",
+            "PropagateSelection",
+            "Base",
+            "Whether to weld along any edges tangent to selected edges",
         )
-
+        obj.addProperty(
+            "App::PropertyLength", "WeldSize", "Weld", "Size of the weld bead"
+        )
+        # properties for intermittent welds
         obj.addProperty(
             "App::PropertyBool",
             "IntermittentWeld",
@@ -27,27 +34,10 @@ class WeldFeature:
             "Whether to model an intermittent or continuous weld",
         )
         obj.addProperty(
-            "App::PropertyEnumeration",
-            "IntermittentWeldSpecification",
-            "Weld",
-            "Method of specification for intermittent welds",
-        )
-        obj.IntermittentWeldSpecification = [
-            "Length-Pitch",
-            "Length-Number",
-            # "Pitch-Number",  # This would leave the weld length ambiguous?
-        ]
-        obj.addProperty(
-            "App::PropertyInteger",
-            "NumberOfIntermittentWelds",
-            "Weld",
-            "Number of welds in an intermittent weld",
-        )
-        obj.addProperty(
             "App::PropertyLength",
-            "IntermittentWeldSpacing",
+            "IntermittentWeldPitch",
             "Weld",
-            "Spacing (pitch) of intermittent welds",
+            "Pitch of intermittent welds",
         )
         obj.addProperty(
             "App::PropertyLength",
@@ -62,7 +52,8 @@ class WeldFeature:
             "Offset of the start of the intermittent weld pattern "
             "from the start of selected edges",
         )
-
+        # Informational properties - There have no effect on the generated geometry,
+        # but they can be used to track metadata that could be linked to drawings.
         obj.addProperty(
             "App::PropertyBool",
             "FieldWeld",
@@ -87,6 +78,7 @@ class WeldFeature:
             "WeldInformation",
             "Computed Length of weld material in this weld object",
         )
+        obj.setPropertyStatus("WeldLength", "ReadOnly")
 
         self._vertex_list = []
 
@@ -94,49 +86,36 @@ class WeldFeature:
         pass
 
     def onChanged(self, obj, prop: str):
-        if prop == "Base":
-            self._recompute_vertices(obj)
-        if prop == "WeldSize":
+        non_informational_properties = [
+            "Base",
+            "WeldSize",
+            "IntermittentWeld",
+            "IntermittentWeldPitch",
+            "IntermittentWeldLength",
+            "IntermittentWeldOffset",
+        ]
+        if prop in non_informational_properties:
             self._recompute_vertices(obj)
         if prop == "IntermittentWeld":
             # when not using an intermittent weld,
             # hide visibility of associated properties
             dependant_properties = [
-                "NumberOfIntermittentWelds",
-                "IntermittentWeldSpacing",
+                "IntermittentWeldPitch",
                 "IntermittentWeldLength",
                 "IntermittentWeldOffset",
-                "IntermittentWeldSpecification",
             ]
             for property_name in dependant_properties:
-                # can also use "-Hidden" to clear the status bit
+                # prepend a '-' (E.G.: "-Hidden") to clear the status bit
                 obj.setPropertyStatus(
                     property_name, "-" * int(obj.IntermittentWeld) + "Hidden"
                 )
-        if prop == "IntermittentWeldSpecification":
-            pass
-        if prop == "NumberOfIntermittentWelds":
-            pass
-        if prop == "IntermittentWeldSpacing":
-            pass
-        if prop == "IntermittentWeldLength":
-            pass
-        if prop == "IntermittentWeldOffset":
-            pass
-        if prop == "FieldWeld":
-            pass
-        if prop == "AlternatingWeld":
-            pass
-        if prop == "AllAround":
-            pass
-        if prop == "WeldLength":
-            pass
 
     def dumps(self):
         return {
             "_vertex_list": [
                 [tuple(x) for x in sublist] for sublist in self._vertex_list
-            ]
+            ],
+            "_weld_length": self._weld_length,
         }
 
     def loads(self, state: dict):
@@ -144,6 +123,7 @@ class WeldFeature:
             [FreeCAD.Vector(x) for x in sublist]
             for sublist in state.get("_vertex_list", [])
         ]
+        self._weld_length = state.get("_weld_length", 0.0)
         return None
 
     def _recompute_vertices(self, obj):
@@ -181,8 +161,43 @@ class WeldFeature:
         lists_of_vertexes = []
 
         # TODO: this will cause errors with objects in differing geofeature groups
-        for edge_group in sorted_edges:
-            lists_of_vertexes.append(discretize_list_of_edges(edge_group, bead_size))
+        if obj.IntermittentWeld:
+            for edge_group in sorted_edges:
+                lists_of_vertexes.extend(
+                    discretize_intermittent(
+                        edge_group,
+                        bead_size,
+                        float(obj.IntermittentWeldLength.getValueAs("mm")),
+                        float(obj.IntermittentWeldPitch.getValueAs("mm")),
+                        float(obj.IntermittentWeldOffset.getValueAs("mm")),
+                    )
+                )
+        else:
+            for edge_group in sorted_edges:
+                lists_of_vertexes.append(
+                    discretize_list_of_edges(edge_group, bead_size)
+                )
         # the final vertex list is a nested list, where each sublist is a smooth
         # discretization of multiple connected edges
         self._vertex_list = lists_of_vertexes
+        self._update_weld_length(obj)
+
+    def _update_weld_length(self, obj):
+        """based on self._vertex_list (a list of lists of FreeCAD.Vector), this
+        function calculates the total path length of weld using the simple
+        cumulative-distance-between-points method.
+        This has some numerical inaccuracy vs. the edge length of the originally
+        selected edges. However, this discrepency is minimal for reasonable weld
+        bead sizes, and this method works seamlessly with intermittent welds
+        """
+        running_total = 0.0
+        for sublist in self._vertex_list:
+            running_total += sum(
+                starmap(lambda x, y: x.distanceToPoint(y), zip(sublist, sublist[1:]))
+                # zip automatically stops before running off the end of the list-^
+            )
+        self._weld_length = running_total
+        # we must toggle the ReadOnly propertybit in order to set the value at all
+        obj.setPropertyStatus("WeldLength", "-ReadOnly")
+        obj.WeldLength = self._weld_length
+        obj.setPropertyStatus("WeldLength", "ReadOnly")

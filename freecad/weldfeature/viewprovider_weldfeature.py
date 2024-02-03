@@ -52,7 +52,14 @@ class ViewProviderWeldFeature:
         vobj.addDisplayMode(self.wireframe_display_group, "Wireframe")
 
     def updateData(self, fp, prop):
-        if prop == "Base":
+        weld_position_properties = [
+            "Base",
+            "IntermittentWeld",
+            "IntermittentWeldPitch",
+            "IntermittentWeldLength",
+            "IntermittentWeldOffset",
+        ]
+        if prop in weld_position_properties:
             # recompute the entire weld bead shape
             self._setup_weld_bead(fp)
         if prop == "WeldSize":
@@ -61,14 +68,6 @@ class ViewProviderWeldFeature:
             self.sphere.radius.setValue(0.99 * new_size)
             self.intermediate_cyl.radius.setValue(new_size)
             self._setup_weld_bead(fp)
-        if prop == "IntermittentWeld":
-            pass  # TODO
-        if prop == "NumberOfWelds":
-            pass  # TODO
-        if prop == "WeldSpacing":
-            pass  # TODO
-        if prop == "WeldLength":
-            pass  # TODO
         return
 
     def getDisplayModes(self, obj):
@@ -106,6 +105,7 @@ class ViewProviderWeldFeature:
                 vp.setPropertyStatus("AutoSetAlternatingColor", "Hidden")
         if prop == "ShapeColor":
             if vp.AutoSetAlternatingColor:
+                vp.setPropertyStatus("AlternatingColor", "Hidden")
                 rgb = vp.ShapeColor[:3]
                 alternate_color = (*get_complementary_shade(rgb), 1.0)
                 vp.setPropertyStatus("AlternatingColor", "-ReadOnly")
