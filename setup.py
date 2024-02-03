@@ -15,7 +15,7 @@ setup(
     maintainer="Alex Neufeld",
     maintainer_email="alex.d.neufeld@gmail.com",
     url="https://github.com/alexneufeld/FreeCAD_WeldfFeature",
-    description="FreeCAD module for adding visual reprentations "
+    description="FreeCAD module for adding visual representations "
     "of welded joints to assemblies",
     install_requires=[],
     include_package_data=True,
