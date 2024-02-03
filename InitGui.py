@@ -1,3 +1,4 @@
+import os
 import __main__
 import FreeCADGui
 from freecad.weldfeature.command_add_weldfeature import AddWeldFeatureCommand
@@ -32,3 +33,44 @@ FreeCADGui.getMainWindow().workbenchActivated.connect(toolbar_manipulation)
 
 # Add the GUI command
 FreeCADGui.addCommand("WeldFeature_Add", AddWeldFeatureCommand())
+
+
+# This shouldn't need an entire workbench
+class WeldWorkbench(FreeCADGui.Workbench):
+    from freecad.weldfeature import ICONPATH, TRANSLATIONSPATH
+    from freecad.weldfeature.TranslateUtils import translate
+
+    MenuText = translate("Weld Bead", "Weld Bead")
+    ToolTip = translate("Weld Bead", "Add weld beads to an assembly")
+    Icon = os.path.join(ICONPATH, "WeldFeature.svg")
+    toolbox = []
+
+    def GetClassName(self):
+        return "Gui::PythonWorkbench"
+
+    def Initialize(self):
+        from freecad.weldfeature import TRANSLATIONSPATH
+
+        FreeCADGui.addLanguagePath(TRANSLATIONSPATH)
+        FreeCADGui.updateLocale()
+        self.appendMenu(
+            "WeldFeature",
+            [
+                "WeldFeature_Add",
+            ],
+        )
+        self.appendToolbar(
+            "WeldFeature",
+            [
+                "WeldFeature_Add",
+            ],
+        )
+
+    def Activated(self):
+        pass
+
+    def Deactivated(self):
+        pass
+
+
+FreeCADGui.addWorkbench(WeldWorkbench())
