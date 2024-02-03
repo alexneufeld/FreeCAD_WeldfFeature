@@ -87,15 +87,20 @@ class ViewProviderWeldFeature:
             if vp.AutoSetAlternatingColor:
                 rgb = vp.ShapeColor[:3]
                 alternate_color = (*get_complementary_shade(rgb), 1.0)
+                vp.setPropertyStatus("AlternatingColor", "Hidden")
                 vp.setPropertyStatus("AlternatingColor", "-ReadOnly")
                 vp.AlternatingColor = alternate_color
                 vp.setPropertyStatus("AlternatingColor", "ReadOnly")
             else:
                 vp.setPropertyStatus("AlternatingColor", "-ReadOnly")
+                vp.setPropertyStatus("AlternatingColor", "-Hidden")
         if prop == "DrawWithAlternatingColors":
             if vp.DrawWithAlternatingColors:
-                vp.setPropertyStatus("AlternatingColor", "-Hidden")
                 vp.setPropertyStatus("AutoSetAlternatingColor", "-Hidden")
+                if vp.AutoSetAlternatingColor:
+                    vp.setPropertyStatus("AlternatingColor", "Hidden")
+                else:
+                    vp.setPropertyStatus("AlternatingColor", "-Hidden")
             else:
                 vp.setPropertyStatus("AlternatingColor", "Hidden")
                 vp.setPropertyStatus("AutoSetAlternatingColor", "Hidden")
