@@ -30,7 +30,7 @@ class TestShouldFlipEdge(unittest.TestCase):
         e2 = Part.makeLine(v3, v2)
         self.assertEqual(geom_utils.should_flip_edges(e1, e2), (False, True))
 
-    def doesnt_flip_correct_edges(self):
+    def test_doesnt_flip_correct_edges(self):
         v1 = FreeCAD.Vector(0.0, 1.0, 2.0)
         v2 = FreeCAD.Vector(1.0, 1.0, 2.0)
         v3 = FreeCAD.Vector(1.0, 1.0, 3.0)
@@ -38,7 +38,7 @@ class TestShouldFlipEdge(unittest.TestCase):
         e2 = Part.makeLine(v2, v3)
         self.assertEqual(geom_utils.should_flip_edges(e1, e2), (False, False))
 
-    def works_with_fuzzy_coincidence(self):
+    def test_works_with_fuzzy_coincidence(self):
         v1 = FreeCAD.Vector(0.0, 1.0, 2.0)
         v2 = FreeCAD.Vector(1.0, 1.0, 2.0)
         almost_v2 = FreeCAD.Vector(1.0, 1.000001, 2.0)
@@ -46,6 +46,22 @@ class TestShouldFlipEdge(unittest.TestCase):
         e1 = Part.makeLine(v1, v2)
         e2 = Part.makeLine(v3, almost_v2)
         self.assertEqual(geom_utils.should_flip_edges(e1, e2), (False, True))
+
+
+class TestCompositeEdge(unittest.TestCase):
+    def test_works_with_one_edge(self):
+        v1 = FreeCAD.Vector(0.0, 1.0, 2.0)
+        v2 = FreeCAD.Vector(1.0, 1.0, 2.0)
+        e1 = Part.makeLine(v1, v2)
+        comp = geom_utils.CompositeEdge(
+            [
+                e1,
+            ]
+        )
+        self.assertAlmostEqual(v1.distanceToPoint(v2), comp.Length, places=5)
+        self.assertTrue(
+            (v1 + 0.5 * (v2 - v1)).isEqual(comp.valueAt(comp.Length / 2), 1e-5)
+        )
 
 
 if __name__ == "__main__":
