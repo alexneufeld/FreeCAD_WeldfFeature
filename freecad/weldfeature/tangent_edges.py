@@ -75,6 +75,8 @@ def expand_selection_to_geometry(geom_selection, expand=False) -> list[Part.Edge
         # flatten the list of selected document objects.
         # We'll then re-sort them into groups of connected edges,
         # ignoring which document objects those edges originally belonged to.
+        if not hasattr(base_object, "Shape"):
+            continue
         if base_object.Shape.isNull():
             continue  # yet another check for null garbage on document restore
         for subel in subelement_names:
