@@ -17,6 +17,6 @@ setup(
     url="https://github.com/alexneufeld/FreeCAD_WeldfFeature",
     description="FreeCAD module for adding visual representations "
     "of welded joints to assemblies",
-    install_requires=[],
+    install_requires=["scipy"],
     include_package_data=True,
 )
