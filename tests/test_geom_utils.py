@@ -53,11 +53,7 @@ class TestCompositeEdge(unittest.TestCase):
         v1 = FreeCAD.Vector(0.0, 1.0, 2.0)
         v2 = FreeCAD.Vector(1.0, 1.0, 2.0)
         e1 = Part.makeLine(v1, v2)
-        comp = geom_utils.CompositeEdge(
-            [
-                e1,
-            ]
-        )
+        comp = geom_utils.CompositeEdge([e1])
         self.assertAlmostEqual(v1.distanceToPoint(v2), comp.Length, places=5)
         self.assertTrue(
             (v1 + 0.5 * (v2 - v1)).isEqual(comp.valueAt(comp.Length / 2), 1e-5)
