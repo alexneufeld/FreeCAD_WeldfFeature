@@ -7,6 +7,7 @@ from .viewprovider_weldfeature import ViewProviderWeldFeature
 from .gui_utils import parse_and_clean_selection
 from .gui_utils import set_default_values
 from .gui_utils import get_best_default_object_colors
+from .task_weldfeature import WeldFeatureTaskPanel
 
 
 class AddWeldFeatureCommand:
@@ -50,6 +51,9 @@ class AddWeldFeatureCommand:
         base_color, alternate_color = get_best_default_object_colors(obj.Base[0][0])
         obj.ViewObject.ShapeColor = base_color
         obj.ViewObject.AlternatingColor = alternate_color
+        # show the objects task panel
+        taskpanel = WeldFeatureTaskPanel(obj, True)
+        FreeCADGui.Control.showDialog(taskpanel)
 
     def IsActive(self):
         return FreeCADGui.ActiveDocument is not None

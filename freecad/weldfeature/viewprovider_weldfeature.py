@@ -1,9 +1,12 @@
 import os
 import math
 import FreeCAD
+import FreeCADGui
+from PySide import QtGui
 from freecad.weldfeature import ICONPATH
 import pivy.coin as coin
 from .gui_utils import get_complementary_shade
+from .task_weldfeature import WeldFeatureTaskPanel
 
 
 class ViewProviderWeldFeature:
@@ -117,6 +120,26 @@ class ViewProviderWeldFeature:
 
     def getIcon(self):
         return os.path.join(ICONPATH, "WeldFeature.svg")
+
+    def setEdit(self, vobj, mode=0):
+        taskpanel = WeldFeatureTaskPanel(vobj.Object, False)
+        FreeCADGui.Control.showDialog(taskpanel)
+        return True
+
+    def unsetEdit(self, vobj, mode=0):
+        FreeCADGui.Control.closeDialog()
+        return False
+
+    def doubleClicked(self, vobj):
+        self.setEdit(vobj)
+        return True
+
+    def setupContextMenu(self, vobj, menu):
+        action = menu.addAction(
+            QtGui.QIcon(os.path.join(ICONPATH, "WeldFeature.svg")), "Edit Weld"
+        )
+        action.triggered.connect(lambda: self.setEdit(vobj))
+        return False
 
     def dumps(self):
         return None
