@@ -28,7 +28,10 @@ import FreeCAD
 
 if FreeCAD.GuiUp:
     from PySide.QtCore import QT_TRANSLATE_NOOP
-    from DraftGui import translate
+    # from DraftGui import translate
+    def translate(context, text):
+        return text
+
 else:
 
     def QT_TRANSLATE_NOOP(context, text):
