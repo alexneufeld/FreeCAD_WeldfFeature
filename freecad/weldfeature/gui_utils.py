@@ -55,6 +55,10 @@ def parse_and_clean_selection():
         # be identical up to the last node. Therefore, only run the following logic
         # on the first one
         the_actual_object = None
+        # SubElementNames looks like:
+        # ('Box.Edge10',)  # version 0.20
+        # ('Pad001.;g1v1;SKT;:H6bb,V;:G;XTR;:H6bb:7,E.Edge1',)  # version 0.22
+        # in newer versions the full element naming path is shown
         sub_names = selitem.SubElementNames[0].split(".")
         for sub_index, sub_name in enumerate(sub_names):
             # sub_thing should be a valid name for a document object in the active
@@ -66,6 +70,11 @@ def parse_and_clean_selection():
                 # last in the chain, it is most likely something like 'Edge010' or
                 # 'Face002', and no error has occurred.
                 if sub_index + 1 == len(sub_names):
+                    continue
+                elif ";" in sub_name:
+                    # account for element naming history if present
+                    # this is probably not strictly correct - the naming history doesn't
+                    # neccesarily HAVE to contain a semicolon...
                     continue
                 else:
                     raise RuntimeError(
@@ -84,7 +93,7 @@ def parse_and_clean_selection():
             if doc_obj.isDerivedFrom("PartDesign::Feature"):
                 # PartDesign bodies have some particularly nasty selection behaviour
                 # By default, a PartDesign::Body's ViewProvider's 'DisplayModeBody'
-                # property is set to True. This allows correct selection of Body
+                # property is set to 'Through'. This allows correct selection of Body
                 # feature geometry when creating chamfers or adding sketches, for
                 # example. But when not editing the body itself, this behaviour causes
                 # headaches. The subelements of the bodies' tip will be selected instead
