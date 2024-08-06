@@ -23,7 +23,9 @@ def get_unit_for_comboboxes(doc: FreeCAD.Document) -> str:
         unit_system_description = list_of_schemas[FreeCAD.Units.getSchema()]
     schema_to_useful_length_unit = {
         "Standard (mm, kg, s, degree)": "mm",
+        "Standard (mm, kg, s, °)": "mm",
         "MKS (m, kg, s, degree)": "mm",
+        "MKS (m, kg, s, °)": "mm",
         "US customary (in, lb)": "mm",
         "Imperial decimal (in, lb)": "in",
         "Building Euro (cm, m², m³)": "cm",
