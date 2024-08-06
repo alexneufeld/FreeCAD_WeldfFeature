@@ -1,9 +1,14 @@
 import os
 import FreeCAD
 import FreeCADGui
-from PySide import QtCore
-from PySide import QtGui
-from PySide import QtWidgets
+try:
+    from PySide import QtCore
+    from PySide import QtGui
+    from PySide import QtWidgets
+except ImportError:
+    from PySide2 import QtCore
+    from PySide2 import QtGui
+    from PySide2 import QtWidgets
 from freecad.weldfeature import ICONPATH
 
 
